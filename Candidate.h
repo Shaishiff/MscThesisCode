@@ -12,28 +12,26 @@ class Candidate
 public:
 	Candidate(int nIndex);
 	virtual ~Candidate();	
-	void CreateFibroblastPatch();	
+	void CreateFibroblasts();
 	void Mutate();
 	void UnMutate();
 
 private:
-	void AddFibroblastPatch(int nFibroblast);
 	void ClearMat();
 
-public:
-	char m_str[256];
+public:	
 	double** m_mat;
-	double m_cost;
-	int m_nIndex;
-	CFkModel* m_pModel;
-	CFkModel* m_pModel2;
 	double** m_pResult1;
-	double** m_pResult2;
+	double** m_pResult2;		
+	int m_nIndex;
+	double m_cost;
 	int m_nCenterH;
 	int m_nCenterW;
 	int m_nHeight;
 	int m_nWidth;
 
+	char m_str[256];
+	
 	// Mutation.
 	int m_nParam1;
 	int m_nParam2;

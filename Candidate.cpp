@@ -8,42 +8,55 @@ using namespace std;
 //////////////////////////////////////////////////////////////////////////////////////////
 
 Candidate::Candidate(int nIndex)
-{
+{	
+	// Create the mats.
+	m_mat = new double*[Nh+2];
 	m_pResult1 = new double*[Nh+2];
 	m_pResult2 = new double*[Nh+2];
 	for(int iH = 0; iH < Nh+2; ++iH)
 	{
+		m_mat[iH] = new double[Nw+2];
 		m_pResult1[iH] = new double[Nw+2];
 		m_pResult2[iH] = new double[Nw+2];
 		for(int iW = 0; iW < Nw+2; ++iW)
 		{											
+			m_mat[iH][iW] = 0;
 			m_pResult1[iH][iW] = 0;
 			m_pResult2[iH][iW] = 0;
+			
+			if((iH == 0) || (iH == Nh+1) || (iW == 0) || (iW == Nw+1))
+			{
+				m_mat[iH][iW] = 1;
+			}
 		}
 	}
 
+	// Init the vars.
+	m_nIndex = nIndex;
+	m_cost = 0.0;
 	m_nCenterH = 0;
 	m_nCenterW = 0;
 	m_nHeight = 0;
-	m_nWidth = 0;
-	m_pModel = new CFkModel();
-	m_pModel2 = new CFkModel();
-	m_nIndex = nIndex;
-	m_cost = 0.0;
-	m_mat = new double*[Nh+2];
-	ClearMat();
+	m_nWidth = 0;	
+	
+	// Now create the fibroblats.
 	if(nIndex == -1)
 	{
+		// Use the target fibroblast mat.
 		m_nCenterH = TargetCenterH;
 		m_nCenterW = TargetCenterW;
 		m_nHeight = TargetHeight;
-		m_nWidth = TargetWidth;
-		CreateFibroblastPatch();
+		m_nWidth = TargetWidth;	
 	}
 	else
 	{
-		AddFibroblastPatch(1);
+		// Create a random fibroblast mat.
+		m_nCenterH = rand()%int(Nh) + 1;
+		m_nCenterW = rand()%int(Nw) + 1;
+		m_nHeight = rand()%int(Nh) + 1;
+		m_nWidth = rand()%int(Nw) + 1;
 	}
+	CreateFibroblasts();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -60,8 +73,8 @@ Candidate::~Candidate()
 	delete [] m_mat;
 	delete [] m_pResult1;
 	delete [] m_pResult2;
-	delete m_pModel;
-	delete m_pModel2;
+	//delete m_pModel;
+	//delete m_pModel2;
 }
 	
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -71,7 +84,6 @@ void Candidate::ClearMat()
 {
 	for(int iH = 0; iH < Nh+2; ++iH)
 	{
-		m_mat[iH] = new double[Nw+2];		
 		for(int iW = 0; iW < Nw+2; ++iW)
 		{								
 			if((iH == 0) || (iH == Nh+1) || (iW == 0) || (iW == Nw+1))
@@ -89,7 +101,7 @@ void Candidate::ClearMat()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void Candidate::CreateFibroblastPatch()
+void Candidate::CreateFibroblasts()
 {
 	ClearMat();
 	int nhStart = max((m_nCenterH),1);
@@ -189,18 +201,6 @@ void Candidate::UnMutate()
 			m_nWidth -= m_nVal2;
 			break;
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-void Candidate::AddFibroblastPatch(int nFibroblast)
-{
-	m_nCenterH = rand()%int(Nh) + 1;
-	m_nCenterW = rand()%int(Nw) + 1;
-	m_nHeight = rand()%int(Nh) + 1;
-	m_nWidth = rand()%int(Nw) + 1;
-	CreateFibroblastPatch();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

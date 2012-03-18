@@ -14,13 +14,13 @@ CFkModel::CFkModel()
 	dW2 = dW*dW;
 	dH2 = dH*dH;
 	mat = NULL;
-	fibroMat = NULL;
+	//fibroMat = NULL;
 	new_mat = NULL;
 	s_mat = NULL;
 	new_s_mat = NULL;
 	f_mat = NULL;
 	new_f_mat = NULL;
-	rise_time_mat = NULL;
+	//rise_time_mat = NULL;
 
 	InitFkModel();
 }
@@ -39,23 +39,23 @@ CFkModel::~CFkModel()
 void CFkModel::InitFkModel()
 {
 	mat = new double*[Nh+2];
-	fibroMat = new double*[Nh+2];
+	//fibroMat = new double*[Nh+2];
 	new_mat = new double*[Nh+2];
 	s_mat = new double*[Nh+2];
 	new_s_mat = new double*[Nh+2];
 	f_mat = new double*[Nh+2];
 	new_f_mat = new double*[Nh+2];
-	rise_time_mat = new double*[Nh+2];
+	//rise_time_mat = new double*[Nh+2];
 	for(int iH = 0; iH < Nh+2; ++iH)
 	{
 		mat[iH] = new double[Nw+2];
-		fibroMat[iH] = new double[Nw+2];
+		//fibroMat[iH] = new double[Nw+2];
 		new_mat[iH] = new double[Nw+2];
 		s_mat[iH] = new double[Nw+2];
 		new_s_mat[iH] = new double[Nw+2];
 		f_mat[iH] = new double[Nw+2];
 		new_f_mat[iH] = new double[Nw+2];
-		rise_time_mat[iH] = new double[Nw+2];
+		//rise_time_mat[iH] = new double[Nw+2];
 		for(int iW = 0; iW < Nw+2; ++iW)
 		{
 			mat[iH][iW] = 0.0;			
@@ -64,20 +64,21 @@ void CFkModel::InitFkModel()
 			new_s_mat[iH][iW] = 0.0;
 			f_mat[iH][iW] = 0.0;
 			new_f_mat[iH][iW] = 0.0;
-			fibroMat[iH][iW] = 0.0;
-			rise_time_mat[iH][iW] = 0.0;
-
+			//fibroMat[iH][iW] = 0.0;
+			//rise_time_mat[iH][iW] = 0.0;
+			/*
 			if((iH == 0) || (iH == Nh+1) || (iW == 0) || (iW == Nw+1))
 			{
 				fibroMat[iH][iW] = 1;
 			}
+			*/
 		}
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-
+/*
 void CFkModel::InitTargetFibroblastMat()
 {
 	InitTargetFibroblastMat(5, 5, 25, 25);
@@ -88,7 +89,7 @@ void CFkModel::InitTargetFibroblastMat(int nCenterH, int nCenterW, int nHeight, 
 	AddFibroblasts(nCenterH,nCenterH+nHeight,nCenterW,nCenterW+nWidth);	
 	SaveToInputFile(fibroMat, "TargetFibroblastMat.txt");
 }
-
+*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -97,23 +98,23 @@ void CFkModel::DeleteFkModel()
 	for(int iH = 0; iH < Nh+2; ++iH)
 	{
 		delete [] mat[iH];
-		delete [] fibroMat[iH];
+		//delete [] fibroMat[iH];
 		delete [] new_mat[iH];
 		delete [] s_mat[iH];
 		delete [] new_s_mat[iH];
 		delete [] f_mat[iH];
 		delete [] new_f_mat[iH];
-		delete [] rise_time_mat[iH];
+		//delete [] rise_time_mat[iH];
 	}
 
 	delete [] mat;
-	delete [] fibroMat;
+	//delete [] fibroMat;
 	delete [] new_mat;
 	delete [] s_mat;
 	delete [] new_s_mat;
 	delete [] f_mat;
 	delete [] new_f_mat;
-	delete [] rise_time_mat;
+	//delete [] rise_time_mat;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -131,14 +132,14 @@ void CFkModel::CleanupFkModel()
 			new_s_mat[iH][iW] = 0;
 			f_mat[iH][iW] = 0;
 			new_f_mat[iH][iW] = 0;
-			rise_time_mat[iH][iW] = 0;
+			//rise_time_mat[iH][iW] = 0;
 		}
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-
+/*
 void CFkModel::AddFibroblasts(int hStart, int hEnd, int wStart, int wEnd)
 {
 	if((hStart <= 0) || (hEnd >= Nh+1) || (wStart <= 0) || (wEnd >= Nw+1))
@@ -154,7 +155,7 @@ void CFkModel::AddFibroblasts(int hStart, int hEnd, int wStart, int wEnd)
 		}
 	}
 }
-
+*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -238,7 +239,7 @@ void CFkModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-double** CFkModel::ExecuteFkModel(double** inFibroblastMat, const ProtocolParams& protParams)
+void CFkModel::ExecuteFkModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams)
 {	
 	CleanupFkModel();
 	double t_ung = 0.0;
@@ -254,11 +255,6 @@ double** CFkModel::ExecuteFkModel(double** inFibroblastMat, const ProtocolParams
 	int nuFileNumber = 0;
 	int nsFileNumber = 0;
 	int nfFileNumber = 0;
-
-	if(inFibroblastMat == NULL)
-	{
-		inFibroblastMat = fibroMat;
-	}
 
 	SaveToFile(0, nFibroFileNumber, inFibroblastMat, "Fibroblasts"); 
 
@@ -281,7 +277,7 @@ double** CFkModel::ExecuteFkModel(double** inFibroblastMat, const ProtocolParams
 			{            
 				if(inFibroblastMat[iH][iW] == 1)
 				{
-					rise_time_mat[iH][iW] = TotalSimulationTime*2;
+					outRiseTimeMat[iH][iW] = TotalSimulationTime*2;
 				}
 				else
 				{
@@ -299,11 +295,11 @@ double** CFkModel::ExecuteFkModel(double** inFibroblastMat, const ProtocolParams
 					}
 
 					double v = mat[iH][iW];
-					if((v > 0.95) && (rise_time_mat[iH][iW] == 0.0))
+					if((v > 0.95) && (outRiseTimeMat[iH][iW] == 0.0))
 					{
 						if(Jstim == 0.0)
 						{
-							rise_time_mat[iH][iW] = iT*dt;
+							outRiseTimeMat[iH][iW] = iT*dt;
 						}
 					}
 
@@ -391,10 +387,10 @@ double** CFkModel::ExecuteFkModel(double** inFibroblastMat, const ProtocolParams
 	//SaveToFile(Nt, nsFileNumber, s_mat, "s"); 
 	//SaveToFile(Nt, nfFileNumber, f_mat, "f");
 	int n = 0;
-	SaveToFile(Nt, n, rise_time_mat, "r");
+	SaveToFile(Nt, n, outRiseTimeMat, "r");
 
 	// return mat;
-	return rise_time_mat;
+	//return rise_time_mat;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

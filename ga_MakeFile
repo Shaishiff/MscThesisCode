@@ -9,7 +9,7 @@ LIBS = -lglut -lGLU -lGL -lX11 -lXmu -lpthread -Wno-deprecated
 OPT  = -O3
 
 exec: test
-	${mpiRun} -m ${mpd} --rsh=/usr/bin/ssh -n 20 GA.exe
+	${mpiRun} -m ${mpd} --rsh=/usr/bin/ssh -n 2 GA.exe
 
 test: Candidate.cpp FkModel.cpp GA.cpp
 	${mpiCC} Candidate.cpp FkModel.cpp GA.cpp -g -o GA.exe ${OPT} ${INCL} ${LIBS}

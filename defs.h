@@ -50,14 +50,14 @@ const int TargetCenterW = 5;
 const int TargetHeight = 25;
 const int TargetWidth = 25;
 
-#define Npop 10
+#define Npop 4//10
 #define MaxIterations 1000
-#define SelectionRate 0.4
+#define SelectionRate 0.5//0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
 #define Nmates (Npop - NsurvivingPopulation)
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// // Physiological consts
+// Physiological consts
 //////////////////////////////////////////////////////////////////////////////////////////
 
 const double Cm = 1.0; // membrance capacitance - microF/cm^2
