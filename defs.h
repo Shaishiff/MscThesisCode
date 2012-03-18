@@ -2,44 +2,35 @@
 #ifndef __DEFS_H_
 #define __DEFS_H_
 
-#define USE_MPI
 #define FILE_NAME_BUFFER_SIZE	1024
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Includes
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef USE_MPI
-	#include <mpi.h>
-	const int MPI_MASTER = 0;
-	
-	// Msg tags:
-	const int MPI_FLAG_MSG_TAG = 1000;
-	const int MPI_JOB_MSG_TAG = 2000;
-	const int MPI_RESULT_MSG_TAG = 3000;	
-	
-	// Flags:
-	const int MPI_FLAG_QUIT = 1000;
-	const int MPI_FLAG_START_JOB = 2000;
-#else
-	// For detecting memory leaks: http://msdn.microsoft.com/en-us/library/x98tx3cf.aspx
-	#define _CRTDBG_MAP_ALLOC
-	#define _CRT_SECURE_NO_WARNINGS
-	#include <crtdbg.h>
-#endif
-
+#include <mpi.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "math.h"
 #include "time.h"
-#ifndef USE_MPI
-#include "targetver.h"
-#include <tchar.h>
-#include "windows.h"
-#endif
 #include <algorithm>
 #include <vector>
 using namespace std;
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// MPI defines
+//////////////////////////////////////////////////////////////////////////////////////////
+
+const int MPI_MASTER = 0;
+
+// Msg tags:
+const int MPI_FLAG_MSG_TAG = 1000;
+const int MPI_JOB_MSG_TAG = 2000;
+const int MPI_RESULT_MSG_TAG = 3000;	
+
+// Flags:
+const int MPI_FLAG_QUIT = 1000;
+const int MPI_FLAG_START_JOB = 2000;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // GA defines and consts
@@ -50,8 +41,9 @@ const int TargetCenterW = 5;
 const int TargetHeight = 25;
 const int TargetWidth = 25;
 
+#define MAX_NUMBER_OF_THREADS 100
 #define Npop 4//10
-#define MaxIterations 1000
+#define MaxIterations 10
 #define SelectionRate 0.5//0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
 #define Nmates (Npop - NsurvivingPopulation)

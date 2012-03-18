@@ -12,16 +12,13 @@ CFkModel::CFkModel()
 	dVdh = 0.0;
 	dVdw = 0.0;
 	dW2 = dW*dW;
-	dH2 = dH*dH;
+	dH2 = dH*dH;	
 	mat = NULL;
-	//fibroMat = NULL;
 	new_mat = NULL;
 	s_mat = NULL;
 	new_s_mat = NULL;
 	f_mat = NULL;
 	new_f_mat = NULL;
-	//rise_time_mat = NULL;
-
 	InitFkModel();
 }
 
@@ -39,23 +36,19 @@ CFkModel::~CFkModel()
 void CFkModel::InitFkModel()
 {
 	mat = new double*[Nh+2];
-	//fibroMat = new double*[Nh+2];
 	new_mat = new double*[Nh+2];
 	s_mat = new double*[Nh+2];
 	new_s_mat = new double*[Nh+2];
 	f_mat = new double*[Nh+2];
 	new_f_mat = new double*[Nh+2];
-	//rise_time_mat = new double*[Nh+2];
 	for(int iH = 0; iH < Nh+2; ++iH)
 	{
 		mat[iH] = new double[Nw+2];
-		//fibroMat[iH] = new double[Nw+2];
 		new_mat[iH] = new double[Nw+2];
 		s_mat[iH] = new double[Nw+2];
 		new_s_mat[iH] = new double[Nw+2];
 		f_mat[iH] = new double[Nw+2];
 		new_f_mat[iH] = new double[Nw+2];
-		//rise_time_mat[iH] = new double[Nw+2];
 		for(int iW = 0; iW < Nw+2; ++iW)
 		{
 			mat[iH][iW] = 0.0;			
@@ -63,33 +56,11 @@ void CFkModel::InitFkModel()
 			s_mat[iH][iW] = 0.0;
 			new_s_mat[iH][iW] = 0.0;
 			f_mat[iH][iW] = 0.0;
-			new_f_mat[iH][iW] = 0.0;
-			//fibroMat[iH][iW] = 0.0;
-			//rise_time_mat[iH][iW] = 0.0;
-			/*
-			if((iH == 0) || (iH == Nh+1) || (iW == 0) || (iW == Nw+1))
-			{
-				fibroMat[iH][iW] = 1;
-			}
-			*/
+			new_f_mat[iH][iW] = 0.0;			
 		}
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-/*
-void CFkModel::InitTargetFibroblastMat()
-{
-	InitTargetFibroblastMat(5, 5, 25, 25);
-}
-
-void CFkModel::InitTargetFibroblastMat(int nCenterH, int nCenterW, int nHeight, int nWidth)
-{
-	AddFibroblasts(nCenterH,nCenterH+nHeight,nCenterW,nCenterW+nWidth);	
-	SaveToInputFile(fibroMat, "TargetFibroblastMat.txt");
-}
-*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -98,23 +69,19 @@ void CFkModel::DeleteFkModel()
 	for(int iH = 0; iH < Nh+2; ++iH)
 	{
 		delete [] mat[iH];
-		//delete [] fibroMat[iH];
 		delete [] new_mat[iH];
 		delete [] s_mat[iH];
 		delete [] new_s_mat[iH];
 		delete [] f_mat[iH];
 		delete [] new_f_mat[iH];
-		//delete [] rise_time_mat[iH];
 	}
 
 	delete [] mat;
-	//delete [] fibroMat;
 	delete [] new_mat;
 	delete [] s_mat;
 	delete [] new_s_mat;
 	delete [] f_mat;
 	delete [] new_f_mat;
-	//delete [] rise_time_mat;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -126,36 +93,16 @@ void CFkModel::CleanupFkModel()
 	{
 		for(int iW = 0; iW < Nw+2; ++iW)
 		{
-			mat[iH][iW] = 0;			
-			new_mat[iH][iW] = 0;
-			s_mat[iH][iW] = 0;
-			new_s_mat[iH][iW] = 0;
-			f_mat[iH][iW] = 0;
-			new_f_mat[iH][iW] = 0;
-			//rise_time_mat[iH][iW] = 0;
+			mat[iH][iW] = 0.0;			
+			new_mat[iH][iW] = 0.0;
+			s_mat[iH][iW] = 0.0;
+			new_s_mat[iH][iW] = 0.0;
+			f_mat[iH][iW] = 0.0;
+			new_f_mat[iH][iW] = 0.0;
 		}
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-/*
-void CFkModel::AddFibroblasts(int hStart, int hEnd, int wStart, int wEnd)
-{
-	if((hStart <= 0) || (hEnd >= Nh+1) || (wStart <= 0) || (wEnd >= Nw+1))
-	{
-		return;
-	}
-
-	for (int iH=hStart; iH <= hEnd; ++iH)
-	{
-		for (int iW=wStart; iW <= wEnd; ++iW)
-		{
-			fibroMat[iH][iW] = 1;
-		}
-	}
-}
-*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -222,24 +169,36 @@ void CFkModel::SaveToFile(int iT, int& nFileNumber, double** mat, char* nameOfVa
 void CFkModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 {
 	if(inFibroblastMat[iH-1][iW] == 1)
+	{
 		dVdh = (mat[iH+1][iW] - mat[iH][iW])/dH2;
+	}
 	else if (inFibroblastMat[iH + 1][iW] == 1)
+	{
 		dVdh = (mat[iH-1][iW] - mat[iH][iW])/dH2;
+	}
 	else
+	{
 		dVdh = (mat[iH-1][iW] + mat[iH+1][iW] - 2*mat[iH][iW])/dH2;
+	}
 
 	if(inFibroblastMat[iH][iW-1] == 1)
+	{
 		dVdw = (mat[iH][iW+1] - mat[iH][iW])/dW2;
+	}
 	else if (inFibroblastMat[iH][iW+1] == 1)
+	{
 		dVdw  = (mat[iH][iW-1] - mat[iH][iW])/dW2;
+	}
 	else
+	{
 		dVdw  = (mat[iH][iW-1] + mat[iH][iW+1] - 2*mat[iH][iW])/dW2;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void CFkModel::ExecuteFkModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams)
+void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams)
 {	
 	CleanupFkModel();
 	double t_ung = 0.0;
@@ -386,8 +345,9 @@ void CFkModel::ExecuteFkModel(double** inFibroblastMat, double** outRiseTimeMat,
 	//SaveToFile(Nt, nuFileNumber, mat, "u"); 
 	//SaveToFile(Nt, nsFileNumber, s_mat, "s"); 
 	//SaveToFile(Nt, nfFileNumber, f_mat, "f");
-	int n = 0;
-	SaveToFile(Nt, n, outRiseTimeMat, "r");
+	
+	//int n = 0;
+	//SaveToFile(Nt, n, outRiseTimeMat, "r");
 
 	// return mat;
 	//return rise_time_mat;
@@ -395,25 +355,3 @@ void CFkModel::ExecuteFkModel(double** inFibroblastMat, double** outRiseTimeMat,
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-/*
-int _tmain(int argc, _TCHAR* argv[])
-{
-	srand(time(NULL));
-	clock_t mainStartingTime = clock();
-	CFkModel* pModel = new CFkModel();
-	pModel->InitTargetFibroblastMat();
-	pModel->ExecuteFkModel(NULL);
-	clock_t mainEndingTime = clock();
-	double mainRunningTime = (mainEndingTime - mainStartingTime)/double(CLOCKS_PER_SEC);
-	printf("Main duration: %.3f seconds", mainRunningTime);
-	delete pModel;
-	pModel = NULL;
-	_CrtDumpMemoryLeaks();
-	//getchar();
-	return 0;
-}
-*/
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-

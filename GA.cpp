@@ -1,21 +1,20 @@
 
 #include <pthread.h>
 #include "GA.h"
+#include "FkModel.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-
-#define LOG_FILE_NAME "Log.txt"
 
 FILE* pLogFile;
+char strLogFileName[1024];
 char strLog[1024];
 #define LOG \
 	printf("%s", strLog); \
-	pLogFile = fopen(LOG_FILE_NAME, "a"); \
+	pLogFile = fopen(strLogFileName, "a"); \
 	if(pLogFile != NULL){ fprintf(pLogFile,"%s", strLog); fclose(pLogFile); }
 
 Ga ga;
-pthread_mutex_t JobsMutex = PTHREAD_MUTEX_INITIALIZER;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -26,13 +25,28 @@ int Ga::nCurIteration = 0;
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+void* ThreadFunction(void* arg)
+{
+	int* pThreadIndex = (int*)arg;
+	ga.JobProcessingThreadFunc(*pThreadIndex);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 Ga::Ga()
 {
 	nCurIteration = 0;
 	m_pTargetMeasurement1 = new double[Nw];
 	m_pTargetMeasurement2 = new double[Nh];
 	MinCost = NULL;
-	Rank = NULL;		
+	Rank = NULL;
+	for(int iThread = 0; iThread < MAX_NUMBER_OF_THREADS; iThread++)
+	{
+		m_threadIndexArray[iThread] = iThread;
+		m_threadFlagArray[iThread] = true;
+		m_threadHandleArray[iThread] = 0;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -47,7 +61,7 @@ void Ga::InitGa()
 
 		char fileName[FILE_NAME_BUFFER_SIZE] = {0};
 		sprintf(fileName, "OriginalCandidate_%d.txt", iPop);
-		CFkModel::SaveToFile(pCandidate->m_mat, fileName);
+		CFkModel::SaveToFile(pCandidate->GetFibroblastMat(), fileName);
 	}
 
 	MinCost = new double[MaxIterations];
@@ -71,6 +85,16 @@ void Ga::InitGa()
 			Rank[iRank-1] = Rank[iRank-1] + Rank[iRank-2];
 		}
 	}
+	
+	// Create the threads which will allocate the jobs to the
+	// different machines. We start from 1 (and not 0) because
+	// 0 is the index of the master machine (which runs the main program).
+	sprintf(strLog, "Creating %d threads to communicate with the slave processes\n", nNumberOfMachines-1);
+	LOG
+    for(int iThread = 1; iThread < nNumberOfMachines; iThread++)
+	{		
+		int nRet = pthread_create(&m_threadHandleArray[iThread], NULL, ThreadFunction, (void*)(&m_threadIndexArray[iThread]));
+	}   
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -83,13 +107,13 @@ void Ga::CreateTargetMeasurements()
 	CFkModel* pModel = new CFkModel();	
 	Candidate* pTargetCandidate = new Candidate(-1);		
 	
-	pModel->ExecuteFkModel(pTargetCandidate->m_mat, pTargetCandidate->m_pResult1, s1);	
+	pModel->ExecuteModel(pTargetCandidate->GetFibroblastMat(), pTargetCandidate->m_pResult1, s1);	
 	for (int iW = 1; iW < Nw+1; ++iW)
 	{
 		m_pTargetMeasurement1[iW-1] = pTargetCandidate->m_pResult1[Nh][iW];
 	}
 
-	pModel->ExecuteFkModel(pTargetCandidate->m_mat, pTargetCandidate->m_pResult2, s2);
+	pModel->ExecuteModel(pTargetCandidate->GetFibroblastMat(), pTargetCandidate->m_pResult2, s2);
 	for (int iH = 1; iH < Nh+1; ++iH)
 	{
 		m_pTargetMeasurement2[iH-1] = pTargetCandidate->m_pResult2[iH][Nw];
@@ -97,7 +121,7 @@ void Ga::CreateTargetMeasurements()
 	
 	CFkModel::SaveToFile(pTargetCandidate->m_pResult1, "TargetRiseTime1.txt");
 	CFkModel::SaveToFile(pTargetCandidate->m_pResult2, "TargetRiseTime2.txt");
-	sprintf(strLog,"Target: %s\n", pTargetCandidate->m_str);
+	sprintf(strLog, "Target: %s\n", pTargetCandidate->GetFullName());
 	LOG
 	
 	delete pModel;
@@ -109,90 +133,79 @@ void Ga::CreateTargetMeasurements()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-Job* Ga::GetJob()
-{
-	pthread_mutex_lock(&JobsMutex);
-	if(Jobs.empty())
-	{
-		pthread_mutex_unlock(&JobsMutex);
-		return NULL;
-	}
-	Job* pJob = Jobs.back();
-    Jobs.pop_back();
-	pthread_mutex_unlock(&JobsMutex);
-	return pJob;
-}
-
-void* ThreadFunction(void* arg)
-{
-	int* pThreadIndex = (int*)arg;
-	ga.JobProcessingThreadFunc(*pThreadIndex);
-}
-
 void Ga::JobProcessingThreadFunc(int nThreadIndex)
 {	
-	printf("JobProcessingThreadFunc | Started | Thread: %d\n", nThreadIndex);
-	MPI_Status* status = new MPI_Status();
-				
-	// Start reading from the job queue until there are no more jobs.
-	Job* pJob = ga.GetJob();
-	while(pJob != NULL)
-	{	
-		printf("JobProcessingThreadFunc | Read job | Thread: %d\n", nThreadIndex);
+	printf("JobProcessingThreadFunc | Started | Thread: %d\n", nThreadIndex);				
+	while(ga.GetThreadFlag(nThreadIndex))
+	{
+		Job* pJob = ga.GetJob();
+		if(pJob != NULL)
+		{	
+			printf("JobProcessingThreadFunc | Read job | Thread: %d\n", nThreadIndex);
+						
+			// Tell the corresponding machine that we want to start a new job.
+			double dFlag = MPI_FLAG_START_JOB;
+			printf("JobProcessingThreadFunc | Sending start job flag | Thread: %d\n", nThreadIndex);
+			MPI_Send(&dFlag, 1, MPI_DOUBLE, nThreadIndex, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
+			sleep(1);
+			
+			// Send the actual matrix to process.
+			Candidate* pCandidate = pJob->m_pCandidate;
+			double** mat = pCandidate->GetFibroblastMat();
+			printf("JobProcessingThreadFunc | Processing candidate %d | Thread: %d\n", pCandidate->m_nIndex, nThreadIndex);
+			
+			printf("JobProcessingThreadFunc | Sending mat for processing | Thread: %d\n", nThreadIndex);
+			MPI_Send(mat, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_JOB_MSG_TAG, MPI::COMM_WORLD);
+			sleep(1);
 		
-		// Tell the corresponding machine that we want to start a new job.
-		double dFlag = MPI_FLAG_START_JOB;
-		MPI_Send(&dFlag, 1, MPI_DOUBLE, nThreadIndex, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
-		printf("JobProcessingThreadFunc | Sent start job flag | Thread: %d\n", nThreadIndex);
+			MPI_Status* status = new MPI_Status();
 		
-		// Send the actual matrix to process.
-		Candidate* pCandidate = pJob->m_pCandidate;
-		double** mat = pCandidate->m_mat;
-		printf("JobProcessingThreadFunc | Processing candidate %d | Thread: %d\n", pCandidate->m_nIndex, nThreadIndex);
-		
-		MPI_Send(mat, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_JOB_MSG_TAG, MPI::COMM_WORLD);
-		printf("JobProcessingThreadFunc | Sent mat for processing | Thread: %d\n", nThreadIndex);
-	
-		// We wait for the result.
-		MPI_Recv(pCandidate->m_pResult1, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, status);
-		printf("JobProcessingThreadFunc | Received result mat 1 | Thread: %d\n", nThreadIndex);
-		
-		MPI_Recv(pCandidate->m_pResult2, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, status);
-		printf("JobProcessingThreadFunc | Received result mat 2 | Thread: %d\n", nThreadIndex);
-		/*
-		char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-		sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_1.txt", 0, pCandidate->m_nIndex);
-		CFkModel::SaveToOutputFile(pCandidate->m_pResult1, riseTimeCandidateFileName);
-		sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_2.txt", 0, pCandidate->m_nIndex);
-		CFkModel::SaveToOutputFile(pCandidate->m_pResult2, riseTimeCandidateFileName);
-		
-		// Calculate the cost for this candidate.
-		pCandidate->m_cost = 0;
-		
-		// Calculate cost from result 1.
-		for (int iW = 1; iW < Nw+1; ++iW)
-		{
-			pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult1[Nh][iW] - pGlobalMeasurement1[iW]));
-		}
+			// We wait for the result.
+			printf("JobProcessingThreadFunc | Waiting to receive result mat 1 | Thread: %d\n", nThreadIndex);
+			MPI_Recv(pCandidate->m_pResult1, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, status);
+			printf("JobProcessingThreadFunc | Received result mat 1 | Thread: %d\n", nThreadIndex);
+			sleep(1);
+			
+			printf("JobProcessingThreadFunc | Waiting to receive result mat 2 | Thread: %d\n", nThreadIndex);
+			MPI_Recv(pCandidate->m_pResult2, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, status);
+			printf("JobProcessingThreadFunc | Received result mat 2 | Thread: %d\n", nThreadIndex);
+			sleep(1);
+					
+			char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
+			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_1.txt", 0, pCandidate->m_nIndex);
+			CFkModel::SaveToOutputFile(pCandidate->m_pResult1, riseTimeCandidateFileName);
+			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_2.txt", 0, pCandidate->m_nIndex);
+			CFkModel::SaveToOutputFile(pCandidate->m_pResult2, riseTimeCandidateFileName);
+			
+			// Calculate the cost for this candidate.
+			pCandidate->m_cost = 0;
+			
+			// Calculate cost from result 1.
+			for (int iW = 1; iW < Nw+1; ++iW)
+			{
+				pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult1[Nh][iW] - m_pTargetMeasurement1[iW]));
+			}
 
-		// Calculate cost from result 2.
-		for (int iH = 1; iH < Nh+1; ++iH)
-		{
-			pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult2[iH][Nw] - pGlobalMeasurement2[iH]));
+			// Calculate cost from result 2.
+			for (int iH = 1; iH < Nh+1; ++iH)
+			{
+				pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult2[iH][Nw] - m_pTargetMeasurement2[iH]));
+			}
+			
+			printf("JobProcessingThreadFunc | calculated cost: %.2f, candidate: %d, thread: %d\n", pCandidate->m_cost, pCandidate->m_nIndex, nThreadIndex);
+			
+			delete status;
+			status = NULL;
+			
+			// Delete this job and move on to the next one.
+			delete pJob;
+			pJob = NULL;
 		}
-		*/
-		printf("JobProcessingThreadFunc | calculated cost: %.2f, candidate: %d, thread: %d\n", pCandidate->m_cost, pCandidate->m_nIndex, nThreadIndex);
-		
-		// Delete this job and move on to the next one.
-		delete pJob;
-		pJob = NULL;
-		pJob = ga.GetJob();
+		usleep(500);
 	}
 	
 	// No more jobs to process.
 	printf("JobProcessingThreadFunc | No more jobs, exiting | Thread: %d\n", nThreadIndex);
-	delete status;
-	status = NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -205,10 +218,7 @@ void Ga::CalculateCosts()
 		
 	// Create the jobs.
 	for (int nPopIndex = 0; nPopIndex < Npop; ++nPopIndex)
-	{	
-		sprintf(strLog, "Calculating cost for candidate #%d: %s\n", Population[nPopIndex]->m_nIndex, Population[nPopIndex]->m_str);
-		LOG
-		
+	{			
 		// We don't need to recalculate the first candidate because
 		// it hasn't been mutated.
 		bool bAddJob = (Population[nPopIndex]->m_nIndex != 0);
@@ -219,43 +229,15 @@ void Ga::CalculateCosts()
 		
 		if(bAddJob)
 		{	
+			sprintf(strLog, "Creating a job for candidate #%d: %s\n", Population[nPopIndex]->m_nIndex, Population[nPopIndex]->GetFullName());
+			LOG
+		
 			Job* pJob = new Job();
 			pJob->m_pCandidate = Population[nPopIndex];
-			Jobs.push_back(pJob);
+			m_jobVector.AddJob(pJob);
 		}
 	}
-	
-	// Create the threads which will allocate the jobs to the
-	// different machines. We start from 1 (and not 0) because
-	// 0 is the index of the master machine (which runs the main program).
-	sprintf(strLog, "Creating %d threads to communicate with the processes\n", nNumberOfMachines-1);
-	LOG
-	int** threadIndexArray = new int*[nNumberOfMachines];
-	pthread_t* threadArray = new pthread_t[nNumberOfMachines];
-    for(int iThread = 1; iThread < nNumberOfMachines; iThread++)
-	{
-		threadIndexArray[iThread] = new int;
-		(*threadIndexArray[iThread]) = iThread;
-		threadArray[iThread] = 0;
-		int nRet = pthread_create(&threadArray[iThread], NULL, ThreadFunction, (void*)threadIndexArray[iThread]);
-	}
-     
-	// Wait till all the threads are complete before main continues.
-	sprintf(strLog, "Waiting for all the threads to finish\n");
-	LOG
-	for(int iThread = 1; iThread < nNumberOfMachines; iThread++)
-	{
-		sprintf(strLog, "Waiting for thread: %d\n", iThread);
-		LOG
-		pthread_join(threadArray[iThread], NULL);
-		delete threadIndexArray[iThread];
-		threadIndexArray[iThread] = NULL;
-		sprintf(strLog, "Stopped waiting for thread: %d\n", iThread);
-		LOG
-	}
-	delete [] threadIndexArray;
-	delete [] threadArray;
-	
+		
 	sprintf(strLog, "CalculatingCosts finished\n"); 
 	LOG
 }
@@ -286,9 +268,9 @@ void Ga::CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild
 		throw;
 	}
 		
-	sprintf(strLog,"Parent1, Candidate #%d: %s\n", pParent1->m_nIndex, pParent1->m_str);
+	sprintf(strLog,"Parent1, Candidate #%d: %s\n", pParent1->m_nIndex, pParent1->GetFullName());
 	LOG
-	sprintf(strLog,"Parent2, Candidate #%d: %s\n", pParent2->m_nIndex, pParent2->m_str);
+	sprintf(strLog,"Parent2, Candidate #%d: %s\n", pParent2->m_nIndex, pParent2->GetFullName());
 	LOG
 
 	pChild->m_nCenterH = pParent1->m_nCenterH;
@@ -331,7 +313,7 @@ void Ga::CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild
 	}
 
 	pChild->CreateFibroblasts();
-	sprintf(strLog,"Child,   Candidate #%d: %s\n", pChild->m_nIndex, pChild->m_str);	
+	sprintf(strLog,"Child,   Candidate #%d: %s\n", pChild->m_nIndex, pChild->GetFullName());	
 	LOG
 	sprintf(strLog,"-\n");
 	LOG
@@ -371,7 +353,7 @@ void Ga::CreateMutations()
 	LOG
 	for(int iPop = 1; iPop < Npop; ++iPop)
 	{
-		sprintf(strLog,"Candiate #%d before mutation: %s\n", iPop, Population[iPop]->m_str);
+		sprintf(strLog,"Candiate #%d before mutation: %s\n", iPop, Population[iPop]->GetFullName());
 		LOG
 		Population[iPop]->Mutate();
 		while(FindSimilarCandidate(iPop))
@@ -381,7 +363,7 @@ void Ga::CreateMutations()
 		}
 		Population[iPop]->CreateFibroblasts();
 		Population[iPop]->m_cost = 0.0;
-		sprintf(strLog,"Candiate #%d after mutation : %s\n", iPop, Population[iPop]->m_str);
+		sprintf(strLog,"Candiate #%d after mutation : %s\n", iPop, Population[iPop]->GetFullName());
 		LOG
 		sprintf(strLog,"-\n");
 		LOG
@@ -424,14 +406,14 @@ void Ga::RunGa()
 
 		char bestCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
 		sprintf(bestCandidateFileName, "BestCandidate_%d.txt", nCurIteration);
-		CFkModel::SaveToFile(Population[0]->m_mat, bestCandidateFileName);
+		CFkModel::SaveToFile(Population[0]->GetFibroblastMat(), bestCandidateFileName);
 
 		double dAvgCost = 0.0;
 		for(int iPop = 0; iPop < Npop; ++iPop)
 		{			
 			char fileName[FILE_NAME_BUFFER_SIZE] = {0};
 			sprintf(fileName, "Candidate_%d_%d.txt", nCurIteration, iPop);
-			CFkModel::SaveToFile(Population[iPop]->m_mat, fileName);
+			CFkModel::SaveToFile(Population[iPop]->GetFibroblastMat(), fileName);
 
 			char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
 			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_1.txt", nCurIteration, iPop);
@@ -483,7 +465,7 @@ void Ga::RunGa()
 		MinCost[nCurIteration] = Population[0]->m_cost;
 		sprintf(strLog,"Avg Cost: %.3f\n", dAvgCost);
 		LOG
-			sprintf(strLog,"Min Cost: %.3f for %s\n", MinCost[nCurIteration], Population[0]->m_str);
+		sprintf(strLog,"Min Cost: %.3f for %s\n", MinCost[nCurIteration], Population[0]->GetFullName());
 		LOG
 		if(MinCost[nCurIteration] <= 0.0)
 		{
@@ -497,6 +479,12 @@ void Ga::RunGa()
 		sprintf(strLog,"------------------\n");
 		LOG
 	}
+		
+    // Terminate the threads.
+	for(int iThread = 1; iThread < nNumberOfMachines; iThread++)
+	{		
+		m_threadFlagArray[iThread] = false;
+	}		
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -504,25 +492,31 @@ void Ga::RunGa()
 
 void StartMainProcess(char* sMachineName)
 {
-	printf("Starting the main process on %s\n", sMachineName);
+	sprintf(strLog, "Starting the main process on %s\n", sMachineName);
+	LOG
 	
 	// This is for the controlling master process.
 	srand((unsigned int)time(NULL));
 	
-	// Clear the current log file.
-	pLogFile = fopen(LOG_FILE_NAME, "w");
-	if(pLogFile != NULL) { fclose(pLogFile); }
-	
 	// Start timing.
 	clock_t mainStartingTime = clock();
-	
+		
 	// Run main program.
 	ga.RunGa();
+
+	for(int iProcess = 1; iProcess < Ga::nNumberOfMachines; ++iProcess)
+	{
+		double dFlag = MPI_FLAG_QUIT;
+		MPI_Send(&dFlag, 1, MPI_DOUBLE, iProcess, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
+		sprintf(strLog, "Sending quit flag to process %d\n", iProcess);
+		LOG
+	}
 	
 	// End timing.
 	clock_t mainEndingTime = clock();
 	double mainRunningTime = (mainEndingTime - mainStartingTime)/double(CLOCKS_PER_SEC);
-	printf("Main duration: %.3f seconds\n", mainRunningTime);		
+	sprintf(strLog, "Main duration: %.3f seconds\n", mainRunningTime);
+	LOG
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -530,8 +524,9 @@ void StartMainProcess(char* sMachineName)
 
 void StartSlaveProcess(int nProcess, char* sMachineName)
 {
-	printf("Starting a slave process, %i on %s\n", nProcess, sMachineName);
-	
+	sprintf(strLog, "Process %i on %s | Starting\n", nProcess, sMachineName);
+	LOG
+		
 	// This is for all the other processes which are not the master.		
 	// Create all the vars we will use for data transfer.
 	double dFlag = 0.0;
@@ -553,39 +548,56 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 	}
 
 	// Start the infinite loop (until the master tells us to quit).
-	printf("Process %i on %s | Starting loop\n", nProcess, sMachineName);
+	sprintf(strLog, "Process %i on %s | Starting loop\n", nProcess, sMachineName);
+	LOG
 	while(true)
 	{
-		printf("Process %i on %s | Waiting for flag\n", nProcess, sMachineName);
+		sprintf(strLog, "Process %i on %s | Waiting for flag\n", nProcess, sMachineName);
+		LOG
 		MPI_Recv(&dFlag, 1, MPI_DOUBLE, MPI_MASTER, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD, status);
 		if(dFlag == MPI_FLAG_QUIT)
 		{
-			printf("Process %i on %s | Got a flag to quit\n", nProcess, sMachineName);
+			sprintf(strLog, "Process %i on %s | Got a flag to quit\n", nProcess, sMachineName);
+			LOG
 			break;
 		}
 		else if (dFlag == MPI_FLAG_START_JOB)
 		{					
-			printf("Process %i on %s | Got a flag to start job\n", nProcess, sMachineName);
-		
-			printf("Process %i on %s | Waiting to receive mat\n", nProcess, sMachineName);
+			sprintf(strLog, "Process %i on %s | Got a flag to start job\n", nProcess, sMachineName);
+			LOG			
+			sprintf(strLog, "Process %i on %s | Waiting to receive mat\n", nProcess, sMachineName);
+			LOG			
 			MPI_Recv(mat, (Nw+2)*(Nh+2), MPI_DOUBLE, MPI_MASTER, MPI_JOB_MSG_TAG, MPI::COMM_WORLD, status);
-			printf("Process %i on %s | Mat received\n", nProcess, sMachineName);
+			sprintf(strLog, "Process %i on %s | Mat received\n", nProcess, sMachineName);
+			LOG
+			sleep(1);
 			
 			// First protocol.
-			printf("Process %i on %s | Executing 1st protocol\n", nProcess, sMachineName);
-			//result_mat = pModel->ExecuteFkModel(mat, s1);
-			printf("Process %i on %s | Finished 1st protocol, sending results\n", nProcess, sMachineName);
+			sprintf(strLog, "Process %i on %s | Executing 1st protocol\n", nProcess, sMachineName);
+			LOG
+			//result_mat = pModel->ExecuteModel(mat, s1);
+			sprintf(strLog, "Process %i on %s | Finished 1st protocol, sending results\n", nProcess, sMachineName);
+			LOG
 			MPI_Send(result_mat, (Nw+2)*(Nh+2), MPI_DOUBLE, MPI_MASTER, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD);
+			sprintf(strLog, "Process %i on %s | 1st protocol results were sent\n", nProcess, sMachineName);
+			LOG		
+			sleep(1);
 			
 			// Second protocol.
-			printf("Process %i on %s | Executing 2nd protocol\n", nProcess, sMachineName);
-			//result_mat = pModel->ExecuteFkModel(mat, s2);
-			printf("Process %i on %s | Finished 2nd protocol, sending results\n", nProcess, sMachineName);
+			sprintf(strLog, "Process %i on %s | Executing 2nd protocol\n", nProcess, sMachineName);
+			LOG
+			//result_mat = pModel->ExecuteModel(mat, s2);
+			sprintf(strLog, "Process %i on %s | Finished 2nd protocol, sending results\n", nProcess, sMachineName);
+			LOG
 			MPI_Send(result_mat, (Nw+2)*(Nh+2), MPI_DOUBLE, MPI_MASTER, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD);
+			sprintf(strLog, "Process %i on %s | 2nd protocol results were sent\n", nProcess, sMachineName);
+			LOG		
+			sleep(1);
 		}
 		else
 		{
-			printf("Got an invalid flag. Process = %i on %s\n", nProcess, sMachineName);
+			sprintf(strLog, "Got an invalid flag. Process = %i on %s\n", nProcess, sMachineName);
+			LOG
 		}
 	} // End of loop.
 	
@@ -614,7 +626,16 @@ int main(int argc, char *argv[])
 	MPI_Get_processor_name(sMachineName, &nCpuNameLen);
 	int nCurProcess = MPI::COMM_WORLD.Get_rank(); // same as MPI_Comm_rank(MPI_COMM_WORLD, &tid)
 	Ga::nNumberOfMachines = MPI::COMM_WORLD.Get_size(); // same as MPI_Comm_size(MPI_COMM_WORLD, &nthreads)
-	printf("Starting process = %i on %s, out of %i processes\n", nCurProcess, sMachineName, Ga::nNumberOfMachines);
+	
+	// Create the log file name.
+	sprintf(strLogFileName, "Log_%i_on_%s.txt", nCurProcess, sMachineName);
+	
+	// Clear the current log file.
+	pLogFile = fopen(strLogFileName, "w");
+	if(pLogFile != NULL) { fclose(pLogFile); }
+		
+	sprintf(strLog, "Starting process = %i on %s, out of %i processes\n", nCurProcess, sMachineName, Ga::nNumberOfMachines);
+	LOG
 	
 	if(nCurProcess == MPI_MASTER)
 	{		

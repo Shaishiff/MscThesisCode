@@ -2,8 +2,6 @@
 #ifndef __CANDIDATE__
 #define __CANDIDATE__
 
-#include "FkModel.h"
-
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -15,12 +13,14 @@ public:
 	void CreateFibroblasts();
 	void Mutate();
 	void UnMutate();
-
+	char* GetFullName() { return m_cCandidateFullName; }
+	double** GetFibroblastMat() const {return m_pFibroblastMat; }
+	
 private:
 	void ClearMat();
 
 public:	
-	double** m_mat;
+	double** m_pFibroblastMat;
 	double** m_pResult1;
 	double** m_pResult2;		
 	int m_nIndex;
@@ -30,7 +30,7 @@ public:
 	int m_nHeight;
 	int m_nWidth;
 
-	char m_str[256];
+	char m_cCandidateFullName[256];
 	
 	// Mutation.
 	int m_nParam1;

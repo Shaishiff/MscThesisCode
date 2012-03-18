@@ -1,16 +1,7 @@
 #ifndef __GA_H__
 #define __GA_H__
 
-#include "defs.h"
-#include "Candidate.h"
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-struct Job
-{
-	Candidate* m_pCandidate;
-};
+#include "safeJobVector.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -23,14 +14,15 @@ public:
 	void JobProcessingThreadFunc(int nThreadIndex);
 	void CreateTargetMeasurements();
 	static double CalculateCost(Candidate* pCandidate);
-
+	bool GetThreadFlag(int nThreadIndex) { return m_threadFlagArray[nThreadIndex]; }
+	
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 private:
 	void InitGa();
 	void CalculateCosts();
-	Job* GetJob();
+	Job* GetJob() { return m_jobVector.GetJob(); }
 	int GetMate();
 	void CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild);
 	bool FindSimilarCandidate(int nIndex);
@@ -49,7 +41,10 @@ private:
 	double* MinCost;
 	double* Rank;
 	vector<Candidate*> Population;
-	vector<Job*> Jobs;
+	CSafeJobVector m_jobVector;
+	int m_threadIndexArray[MAX_NUMBER_OF_THREADS];
+	bool m_threadFlagArray[MAX_NUMBER_OF_THREADS];
+	pthread_t m_threadHandleArray[MAX_NUMBER_OF_THREADS];	
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////

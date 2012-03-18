@@ -10,23 +10,23 @@ using namespace std;
 Candidate::Candidate(int nIndex)
 {	
 	// Create the mats.
-	m_mat = new double*[Nh+2];
+	m_pFibroblastMat = new double*[Nh+2];
 	m_pResult1 = new double*[Nh+2];
 	m_pResult2 = new double*[Nh+2];
 	for(int iH = 0; iH < Nh+2; ++iH)
 	{
-		m_mat[iH] = new double[Nw+2];
+		m_pFibroblastMat[iH] = new double[Nw+2];
 		m_pResult1[iH] = new double[Nw+2];
 		m_pResult2[iH] = new double[Nw+2];
 		for(int iW = 0; iW < Nw+2; ++iW)
 		{											
-			m_mat[iH][iW] = 0;
-			m_pResult1[iH][iW] = 0;
-			m_pResult2[iH][iW] = 0;
+			m_pFibroblastMat[iH][iW] = 0.0;
+			m_pResult1[iH][iW] = 0.0;
+			m_pResult2[iH][iW] = 0.0;
 			
 			if((iH == 0) || (iH == Nh+1) || (iW == 0) || (iW == Nw+1))
 			{
-				m_mat[iH][iW] = 1;
+				m_pFibroblastMat[iH][iW] = 1.0;
 			}
 		}
 	}
@@ -66,15 +66,13 @@ Candidate::~Candidate()
 {
 	for(int iH = 0; iH < Nh+2; ++iH)
 	{
-		delete [] m_mat[iH];
+		delete [] m_pFibroblastMat[iH];
 		delete [] m_pResult1[iH];
 		delete [] m_pResult2[iH];
 	}
-	delete [] m_mat;
+	delete [] m_pFibroblastMat;
 	delete [] m_pResult1;
 	delete [] m_pResult2;
-	//delete m_pModel;
-	//delete m_pModel2;
 }
 	
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -88,11 +86,11 @@ void Candidate::ClearMat()
 		{								
 			if((iH == 0) || (iH == Nh+1) || (iW == 0) || (iW == Nw+1))
 			{
-				m_mat[iH][iW] = 1;
+				m_pFibroblastMat[iH][iW] = 1.0;
 			}
 			else
 			{
-				m_mat[iH][iW] = 0;
+				m_pFibroblastMat[iH][iW] = 0.0;
 			}
 		}
 	}
@@ -112,10 +110,10 @@ void Candidate::CreateFibroblasts()
 	{	
 		for (int iW=nwStart; iW < nwEnd; ++iW)
 		{
-			m_mat[iH][iW] = 1;
+			m_pFibroblastMat[iH][iW] = 1.0;
 		}
 	}
-	sprintf(m_str,"(%d,%d) %dX%d", m_nCenterH, m_nCenterW, m_nHeight, m_nWidth);
+	sprintf(m_cCandidateFullName,"(%d,%d) %dX%d", m_nCenterH, m_nCenterW, m_nHeight, m_nWidth);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
