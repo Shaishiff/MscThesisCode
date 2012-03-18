@@ -10,7 +10,7 @@ FILE* pLogFile;
 char strLogFileName[1024];
 char strLog[1024];
 #define LOG \
-	printf("%s", strLog); \
+	printf("%s", strLog); fflush(stdout);\
 	pLogFile = fopen(strLogFileName, "a"); \
 	if(pLogFile != NULL){ fprintf(pLogFile,"%s", strLog); fclose(pLogFile); }
 
@@ -86,6 +86,7 @@ void Ga::InitGa()
 		}
 	}
 	
+	/*
 	// Create the threads which will allocate the jobs to the
 	// different machines. We start from 1 (and not 0) because
 	// 0 is the index of the master machine (which runs the main program).
@@ -94,7 +95,8 @@ void Ga::InitGa()
     for(int iThread = 1; iThread < nNumberOfMachines; iThread++)
 	{		
 		int nRet = pthread_create(&m_threadHandleArray[iThread], NULL, ThreadFunction, (void*)(&m_threadIndexArray[iThread]));
-	}   
+	} 
+	*/	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -132,6 +134,90 @@ void Ga::CreateTargetMeasurements()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
+
+void Ga::ProcessJobs(int nStartPopIndex, int nEndPopIndex)
+{
+	sprintf(strLog, "ProcessJobs from %d to %d\n", nStartPopIndex, nEndPopIndex);
+	LOG
+	for (int nState = 0; nState < 2; ++nState)
+	{
+		for (int nPopIndex = nStartPopIndex; nPopIndex < nEndPopIndex; ++nPopIndex)
+		{			
+			// We don't need to recalculate the first candidate because
+			// it hasn't been mutated.
+			bool bAddJob = (Population[nPopIndex]->m_nIndex != 0);
+			
+			// But we do need to calculate is cost if this is 
+			// the first iteration ever.
+			bAddJob |= (nCurIteration == 0);
+			
+			if(bAddJob)
+			{	
+				Candidate* pCandidate = Population[nPopIndex];			
+				int nCurMachine = nPopIndex%(nNumberOfMachines-1) + 1;
+				sprintf(strLog, "Job for machine %d, candidate #%d: %s\n", nCurMachine, Population[nPopIndex]->m_nIndex, Population[nPopIndex]->GetFullName());
+				LOG
+								
+				switch(nState)
+				{
+					case 0:
+					{
+						double dFlag = MPI_FLAG_START_JOB;
+						printf("ProcessJobs | Sending start job flag | Machine: %d\n", nCurMachine); fflush(stdout);
+						MPI_Send(&dFlag, 1, MPI_DOUBLE, nCurMachine, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
+						sleep(1);
+
+						// Send the actual matrix to process.						
+						double** mat = pCandidate->GetFibroblastMat();
+						printf("ProcessJobs | Processing candidate %d | Machine: %d\n", pCandidate->m_nIndex, nCurMachine); fflush(stdout);
+						printf("ProcessJobs | Sending mat for processing | Machine: %d\n", nCurMachine); fflush(stdout);
+						MPI_Send(mat, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_JOB_MSG_TAG, MPI::COMM_WORLD);
+						sleep(1);
+						break;
+					}
+					case 1:
+					{
+						MPI_Status status;
+		
+						// We wait for the result.
+						printf("ProcessJobs | Waiting to receive result mat 1 | Machine: %d\n", nCurMachine); fflush(stdout);
+						MPI_Recv(pCandidate->m_pResult1, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
+						printf("ProcessJobs | Received result mat 1 | Machine: %d\n", nCurMachine);  fflush(stdout);
+						
+						printf("ProcessJobs | Waiting to receive result mat 2 | Machine: %d\n", nCurMachine);  fflush(stdout);
+						MPI_Recv(pCandidate->m_pResult2, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
+						printf("ProcessJobs | Received result mat 2 | Machine: %d\n", nCurMachine);  fflush(stdout);
+						
+						/*	
+						char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
+						sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_1.txt", 0, pCandidate->m_nIndex);
+						CFkModel::SaveToOutputFile(pCandidate->m_pResult1, riseTimeCandidateFileName);
+						sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_2.txt", 0, pCandidate->m_nIndex);
+						CFkModel::SaveToOutputFile(pCandidate->m_pResult2, riseTimeCandidateFileName);
+						
+						// Calculate the cost for this candidate.
+						pCandidate->m_cost = 0;
+						
+						// Calculate cost from result 1.
+						for (int iW = 1; iW < Nw+1; ++iW)
+						{
+							pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult1[Nh][iW] - m_pTargetMeasurement1[iW]));
+						}
+
+						// Calculate cost from result 2.
+						for (int iH = 1; iH < Nh+1; ++iH)
+						{
+							pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult2[iH][Nw] - m_pTargetMeasurement2[iH]));
+						}
+						*/
+						sprintf("ProcessJobs | calculated cost: %.2f, candidate: %d, Machine: %d\n", pCandidate->m_cost, pCandidate->m_nIndex, nCurMachine);
+						//delete status;
+					}
+				}			
+			}
+		}
+	}
+}
 
 void Ga::JobProcessingThreadFunc(int nThreadIndex)
 {	
@@ -237,7 +323,12 @@ void Ga::CalculateCosts()
 			m_jobVector.AddJob(pJob);
 		}
 	}
-		
+	
+	while(!m_jobVector.IsEmpty())
+	{
+		usleep(100);
+	}
+	
 	sprintf(strLog, "CalculatingCosts finished\n"); 
 	LOG
 }
@@ -393,7 +484,14 @@ void Ga::RunGa()
 		clock_t iterationStartingTime = clock();
 	
 		// Determine the cost function for each member of the population.
-		CalculateCosts();
+		//CalculateCosts();
+		int nStartPopIndex = 0;
+		while(nStartPopIndex < Npop)
+		{
+			int nEndPopIndex = nStartPopIndex + (nNumberOfMachines-1);
+			ProcessJobs(nStartPopIndex, nEndPopIndex);
+			nStartPopIndex = nEndPopIndex;
+		}
 
 		// Sort according to the cost and then mate according to the rank.
 		sprintf(strLog, "Sorting the population...\n");
@@ -617,9 +715,28 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 
 int main(int argc, char *argv[])
 {
-	MPI_Init(&argc, &argv);	
+	int nProvided = -1;
+	int nMpiIntRet = MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &nProvided);	
 	srand((unsigned int)time(NULL));	
-		
+	/*
+	if(nProvided == MPI_THREAD_SINGLE)
+	{
+		printf("MPI_THREAD_SINGLE\n");
+	}
+	else if(nProvided == MPI_THREAD_FUNNELED)
+	{
+		printf("MPI_THREAD_FUNNELED\n");
+	}
+	else if(nProvided == MPI_THREAD_SERIALIZED)
+	{
+		printf("MPI_THREAD_SERIALIZED\n");
+	}
+	else if(nProvided == MPI_THREAD_MULTIPLE)
+	{
+		printf("MPI_THREAD_MULTIPLE\n");
+	}
+	*/
+	
 	// Getting general info about MPI.
 	int nCpuNameLen = MPI_MAX_PROCESSOR_NAME;
 	char sMachineName[MPI_MAX_PROCESSOR_NAME] = {0};
@@ -635,6 +752,9 @@ int main(int argc, char *argv[])
 	if(pLogFile != NULL) { fclose(pLogFile); }
 		
 	sprintf(strLog, "Starting process = %i on %s, out of %i processes\n", nCurProcess, sMachineName, Ga::nNumberOfMachines);
+	LOG
+	
+	sprintf(strLog, "MPI Init ret: %d, provided thread support: %d for process = %i on %s, out of %i processes\n", nMpiIntRet, nProvided, nCurProcess, sMachineName, Ga::nNumberOfMachines);
 	LOG
 	
 	if(nCurProcess == MPI_MASTER)

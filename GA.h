@@ -22,6 +22,7 @@ public:
 private:
 	void InitGa();
 	void CalculateCosts();
+	void ProcessJobs(int nStartPopIndex, int nEndPopIndex);
 	Job* GetJob() { return m_jobVector.GetJob(); }
 	int GetMate();
 	void CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild);
