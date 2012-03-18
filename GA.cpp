@@ -1,14 +1,6 @@
 
+#include <pthread.h>
 #include "GA.h"
-
-#ifdef USE_MPI
-	#include <mpi.h>
-#else
-	// For detecting memory leaks: http://msdn.microsoft.com/en-us/library/x98tx3cf.aspx
-	#define _CRTDBG_MAP_ALLOC
-	#define _CRT_SECURE_NO_WARNINGS
-	#include <crtdbg.h>
-#endif
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -26,9 +18,14 @@ char strLog[1024];
 	pLogFile = fopen(LOG_FILE_NAME, "a"); \
 	if(pLogFile != NULL){ fprintf(pLogFile,"%s", strLog); fclose(pLogFile); }
 
+Ga ga;
+pthread_mutex_t JobsMutex = PTHREAD_MUTEX_INITIALIZER;
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+int Ga::nNumberOfMachines = 0;
+//double* pMpiFlags = NULL;
 int Ga::nCurIteration = 0;
 double* Ga::pGlobalMeasurement1 = NULL;
 double* Ga::pGlobalMeasurement2 = NULL;
@@ -42,7 +39,7 @@ HANDLE Ga::ghEvents[];
 //////////////////////////////////////////////////////////////////////////////////////////
 
 void Ga::InitGa()
-{
+{	
 	pGlobalMeasurement1 = new double[Nw];
 	pGlobalMeasurement2 = new double[Nh];
 	pTempMeasurement1 = new double*[Npop];
@@ -185,10 +182,117 @@ void Ga::CalculateCosts()
 		LOG
 	}
 }
+
 #else
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+void* ThreadFunction(void* arg)
+{
+	int* pThreadIndex = (int*)arg;
+	ga.JobProcessingThreadFunc(*pThreadIndex);
+}
+
+void Ga::JobProcessingThreadFunc(int nThreadIndex)
+{	
+	// Start reading from the job queue until there are no more jobs.
+	Job* pJob = ga.GetJob();
+	while(pJob != NULL)
+	{	
+		// Tell the process that we want to start a new job.
+		double dFlag = MPI_FLAG_START_JOB;
+		MPI_Send(&dFlag, sizeof(dFlag), MPI_DOUBLE, nThreadIndex, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
+		
+		// Send the actual matrix to process.
+		Candidate* pCandidate = pJob->m_pCandidate;
+		double** mat = pCandidate->m_mat;
+		MPI_Send(mat, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_JOB_MSG_TAG, MPI::COMM_WORLD);
+	
+		// We wait for the result.
+		MPI_Status status;
+		MPI_Recv(pCandidate->m_pResult1, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
+		MPI_Recv(pCandidate->m_pResult2, (Nw+2)*(Nh+2), MPI_DOUBLE, nThreadIndex, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
+		
+		// Calculate the cost for this candidate.
+		pCandidate->m_cost = 0;
+		
+		for (int iW = 1; iW < Nw+1; ++iW)
+		{
+			pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult1[Nh][iW] - pGlobalMeasurement1[iW]));
+		}
+
+		for (int iH = 1; iH < Nh+1; ++iH)
+		{
+			pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult2[iH][Nw] - pGlobalMeasurement2[iH]));
+		}
+		
+		// Delete this job and move on to the next one.
+		delete pJob;
+		pJob = NULL;
+		pJob = ga.GetJob();
+	}
+	
+	// No more jobs to process.
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+Job* Ga::GetJob()
+{
+	pthread_mutex_lock(&JobsMutex);
+	if(Jobs.empty())
+	{
+		pthread_mutex_unlock(&JobsMutex);
+		return NULL;
+	}
+	Job* pJob = Jobs.back();
+    Jobs.pop_back();
+	pthread_mutex_unlock(&JobsMutex);
+	return pJob;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
 void Ga::CalculateCosts()
 {
+	// Create the jobs:
+	for (int nPopIndex = 0; nPopIndex < Npop; ++nPopIndex)
+	{	
+		sprintf(strLog,"Calculating cost for candidate #%d: %s\n", Population[nPopIndex]->m_nIndex, Population[nPopIndex]->m_str);
+		LOG
+		
+		if((nCurIteration == 0) || (Population[nPopIndex]->m_nIndex != 0))
+		{	
+			Job* pJob = new Job();
+			pJob->m_pCandidate = Population[nPopIndex];
+			Jobs.push_back(pJob);
+		}
+	}
+	
+	// Create the threads which will allocate the jobs to the
+	// different machines.
+	int** threadIndexArray = new int*[nNumberOfMachines];
+	pthread_t* threadArray = new pthread_t[nNumberOfMachines];
+    for(int iThread = 1; iThread < nNumberOfMachines; iThread++)
+	{
+		threadIndexArray[iThread] = new int;
+		(*threadIndexArray[iThread]) = iThread;
+		threadArray[iThread] = 0;
+		int nRet = pthread_create(&threadArray[iThread], NULL, ThreadFunction, (void*)threadIndexArray[iThread]);
+	}
+     
+	 // Wait till threads are complete before main continues.
+	for(int iThread = 1; iThread < nNumberOfMachines; iThread++)
+	{
+		pthread_join(threadArray[iThread], NULL);
+		delete threadIndexArray[iThread];
+		threadIndexArray[iThread] = NULL;
+	}
+	delete [] threadIndexArray;
+	delete [] threadArray;
 }
 
 #endif
@@ -483,44 +587,157 @@ void Ga::RunGa()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+void StartMainProcess(char* sMachineName)
+{
+	printf("Starting the main process on machine=%s\n", sMachineName);
+	
+	// This is for the controlling master process.
+	srand((unsigned int)time(NULL));
+	pLogFile = fopen(LOG_FILE_NAME, "w");
+	if(pLogFile != NULL){ fclose(pLogFile); }
+	clock_t mainStartingTime = clock();
+	ga.RunGa();
+	clock_t mainEndingTime = clock();
+	double mainRunningTime = (mainEndingTime - mainStartingTime)/double(CLOCKS_PER_SEC);
+	printf("Main duration: %.3f seconds", mainRunningTime);	
+	getchar();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+void StartSlaveProcess(int nProcess, char* sMachineName)
+{
+	printf("Starting a slave process, %i on machine=%s\n", nProcess, sMachineName);
+	
+	// This is for all the other processes which are not the master.		
+	// Create all the vars we will use for data transfer.
+	double dFlag = 0.0;
+	MPI_Status* status = new MPI_Status; // can save resources by using the predefined constant MPI_STATUS_IGNORE as a special value for the status argument.	
+	S1Protocol s1;
+	S2Protocol s2;
+	CFkModel* pModel = new CFkModel();	
+	double** mat = new double*[Nh+2];
+	double** result_mat = new double*[Nh+2];
+	for(int iH = 0; iH < Nh+2; ++iH)
+	{
+		mat[iH] = new double[Nw+2];		
+		result_mat[iH] = new double[Nw+2];		
+		for(int iW = 0; iW < Nw+2; ++iW)
+		{								
+			mat[iH][iW] = 0;
+			result_mat[iH][iW] = 0;
+		}
+	}
+
+	// Start the infinite loop (until the master tells us to quit).
+	while(true)
+	{
+		MPI_Recv(&dFlag, 1, MPI_DOUBLE, MPI_MASTER, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD, status);
+		if(dFlag == MPI_FLAG_QUIT)
+		{
+			printf("Got flag 1 which means to quit. Process = %i on machine=%s\n", nProcess, sMachineName);
+			break;
+		}
+		else if (dFlag == MPI_FLAG_START_JOB)
+		{								
+			MPI_Recv(mat, (Nw+2)*(Nh+2), MPI_DOUBLE, MPI_MASTER, MPI_JOB_MSG_TAG, MPI::COMM_WORLD, status);
+			
+			// First protocol.
+			printf("Executing first protocol. Process = %i on machine=%s\n", nProcess, sMachineName);
+			result_mat = pModel->ExecuteFkModel(mat, s1);
+			printf("Finished first protocol. Process = %i on machine=%s\n", nProcess, sMachineName);
+			MPI_Send(result_mat, (Nw+2)*(Nh+2), MPI_DOUBLE, MPI_MASTER, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD);
+			
+			// Second protocol.
+			printf("Executing second protocol. Process = %i on machine=%s\n", nProcess, sMachineName);
+			result_mat = pModel->ExecuteFkModel(mat, s2);
+			printf("Finished second protocol. Process = %i on machine=%s\n", nProcess, sMachineName);
+			MPI_Send(result_mat, (Nw+2)*(Nh+2), MPI_DOUBLE, MPI_MASTER, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD);
+		}
+		else
+		{
+			printf("Got an invalid flag. Process = %i on machine=%s\n", nProcess, sMachineName);
+		}
+	} // End of loop.
+	
+	// Clear up the matrix we use for data transfer.
+	for(int iH = 0; iH < Nh+2; ++iH)
+	{
+		delete [] mat[iH];
+		delete [] result_mat[iH];
+	}
+	delete [] mat;
+	delete [] result_mat;
+	delete status;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 #ifndef USE_MPI
 int _tmain(int argc, _TCHAR* argv[])
 #else
 int main(int argc, char *argv[])
 #endif
 {
-	// add in MPI startup routines.
-	// 1st: launch the MPI processes on each node.
-	#ifdef USE_MPI
-	MPI_Init(&argc, &argv);
-	#endif
-	  
-	MPI_Comm_rank(MPI_COMM_WORLD, &tid);
-	MPI_Comm_size(MPI_COMM_WORLD, &nthreads);
-	cpu_name = (char*)calloc(nCpuNameLen,sizeof(char));
-	MPI_Get_processor_name(cpu_name,&nCpuNameLen);
-	printf("hello MPI user: from process = %i on machine=%s, of NCPU=%i processes\n", tid, cpu_name, nthreads);
+#ifdef USE_MPI
 
-	/*
+	MPI_Init(&argc, &argv);
+	
+	// Getting general info about MPI.
+	int nCpuNameLen = MPI_MAX_PROCESSOR_NAME;
+	char sMachineName[MPI_MAX_PROCESSOR_NAME] = {0};
+	MPI_Get_processor_name(sMachineName, &nCpuNameLen);
+	int nCurProcess = MPI::COMM_WORLD.Get_rank(); // same as MPI_Comm_rank(MPI_COMM_WORLD, &tid)
+	Ga::nNumberOfMachines = MPI::COMM_WORLD.Get_size(); // same as MPI_Comm_size(MPI_COMM_WORLD, &nthreads)
+	printf("Starting process = %i on %s, out of %i processes\n", nCurProcess, sMachineName, Ga::nNumberOfMachines);
+	
+	// DEBUG - romove this when we want to run this.
+	MPI_Finalize();
+	return 0;
+	//
+	
+	if(nCurProcess == MPI_MASTER)
+	{
+		StartMainProcess(sMachineName);	
+	}
+	else
+	{		
+		StartSlaveProcess(nCurProcess, sMachineName);
+	}
+	
+	printf("Ending process = %i on machine=%s, out of %i processes\n", nCurProcess, sMachineName, Ga::nNumberOfMachines);
+	MPI_Finalize();
+	
+#else
+	
 	srand((unsigned int)time(NULL));
 	pLogFile = fopen(LOG_FILE_NAME, "w");
 	if(pLogFile != NULL){ fclose(pLogFile); }
 	clock_t mainStartingTime = clock();
-	Ga ga;
 	ga.RunGa();
 	clock_t mainEndingTime = clock();
 	double mainRunningTime = (mainEndingTime - mainStartingTime)/double(CLOCKS_PER_SEC);
 	printf("Main duration: %.3f seconds", mainRunningTime);
 	_CrtDumpMemoryLeaks();	
 	getchar();
-	*/
 
-	#ifdef USE_MPI
-	MPI_Finalize();
-	#endif
-
+#endif // USE_MPI
+	
 	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
+
+// TODO:
+// Create threads the same number as the number of slave processes.
+// Each thread will take a job from the queue and process it.
+// Processing involves: Executing model, saving results and measurements and updating the cost
+// of the specific jobs candidate.
+// The thread will exit when the queue is empty.
+// On exit the thread will signal that it's done and this is how the master process
+// will know he can continue on.
+// Don't forget that when master process exists he needs to signal all other slave
+// processes to exit as well by sending them the appropriate flag.

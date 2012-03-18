@@ -26,6 +26,7 @@ public:
 	double m_cost;
 	int m_nIndex;
 	CFkModel* m_pModel;
+	CFkModel* m_pModel2;
 	double** m_pResult1;
 	double** m_pResult2;
 	int m_nCenterH;
@@ -49,3 +50,4 @@ bool CandidateCompare(Candidate* pFirstCandidate, Candidate* pSecondCandidate);
 //////////////////////////////////////////////////////////////////////////////////////////
 
 #endif // __CANDIDATE__
+

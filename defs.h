@@ -9,6 +9,25 @@
 // Includes
 //////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef USE_MPI
+	#include <mpi.h>
+	const int MPI_MASTER = 0;
+	
+	// Msg tags:
+	const int MPI_FLAG_MSG_TAG = 1000;
+	const int MPI_JOB_MSG_TAG = 2000;
+	const int MPI_RESULT_MSG_TAG = 3000;	
+	
+	// Flags:
+	const int MPI_FLAG_QUIT = 1000;
+	const int MPI_FLAG_START_JOB = 2000;
+#else
+	// For detecting memory leaks: http://msdn.microsoft.com/en-us/library/x98tx3cf.aspx
+	#define _CRTDBG_MAP_ALLOC
+	#define _CRT_SECURE_NO_WARNINGS
+	#include <crtdbg.h>
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "math.h"
@@ -144,3 +163,4 @@ struct S2Protocol : public ProtocolParams
 //////////////////////////////////////////////////////////////////////////////////////////
 
 #endif // __DEFS_H_
+

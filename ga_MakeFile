@@ -1,0 +1,16 @@
+# Omer Berenfeld, 10/08/02 # Design for jobs on the PC clusters: nc1 and nc2
+# revised, sz, 3.15.06
+
+mpiCC = /usr/local/intel/impi/3.2.0.011/bin64/mpicxx
+mpiRun = /usr/local/intel/impi/3.2.0.011/bin64/mpirun
+mpd = /usr/local/intel/impi/3.2.0.011/bin64/mpd
+INCL = 
+LIBS = -lglut -lGLU -lGL -lX11 -lXmu -lpthread -Wno-deprecated
+OPT  = -O3
+
+exec: test
+	${mpiRun} -m ${mpd} --rsh=/usr/bin/ssh -n 20 GA.exe
+
+test: Candidate.cpp FkModel.cpp GA.cpp
+	${mpiCC} Candidate.cpp FkModel.cpp GA.cpp -g -o GA.exe ${OPT} ${INCL} ${LIBS}
+

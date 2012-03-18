@@ -27,6 +27,7 @@ Candidate::Candidate(int nIndex)
 	m_nHeight = 0;
 	m_nWidth = 0;
 	m_pModel = new CFkModel();
+	m_pModel2 = new CFkModel();
 	m_nIndex = nIndex;
 	m_cost = 0.0;
 	m_mat = new double*[Nh+2];
@@ -60,6 +61,7 @@ Candidate::~Candidate()
 	delete [] m_pResult1;
 	delete [] m_pResult2;
 	delete m_pModel;
+	delete m_pModel2;
 }
 	
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -211,3 +213,4 @@ bool CandidateCompare(Candidate* pFirstCandidate, Candidate* pSecondCandidate)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
+
