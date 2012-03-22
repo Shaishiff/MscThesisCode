@@ -92,8 +92,18 @@ const int Nt = (int)(ceil(TotalSimulationTime/dt));
 #define dH 0.05 // cm/node
 #define W 2 // Width, x[cm]
 #define H 2 // Height, y[cm]
-const int Nw = (int)ceil(W/dW);
-const int Nh = (int)ceil(H/dH);
+#define Nw 40
+#define Nh 40
+#define Nw_with_border (Nw+2)
+#define Nh_with_border (Nh+2)
+//typedef double MAT[Nh_with_border][Nw_with_border];
+//const int Nw = (int)ceil(W/dW);
+//const int Nh = (int)ceil(H/dH);
+
+double** CreateMat();
+void DestroyMat(double** in);
+void PrintMat(double** mat);
+bool SaveMatToFile(double** mat, char* fileName);
 
 struct ProtocolParams
 {

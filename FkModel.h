@@ -14,10 +14,6 @@ public:
 	CFkModel();
 	virtual ~CFkModel();
 	void ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams);
-	void SaveToFile(int iT, int& nFileNumber, double** mat, char* nameOfVar);
-	static bool SaveToInputFile(double** mat, char* fileName);
-	static bool SaveToOutputFile(double** mat, char* fileName);
-	static bool SaveToFile(double** mat, char* fileName);
 
 private:
 	void InitFkModel();

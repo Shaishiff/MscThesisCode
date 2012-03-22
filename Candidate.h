@@ -14,7 +14,6 @@ public:
 	void Mutate();
 	void UnMutate();
 	char* GetFullName() { return m_cCandidateFullName; }
-	double** GetFibroblastMat() const {return m_pFibroblastMat; }
 	
 private:
 	void ClearMat();

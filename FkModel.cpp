@@ -35,30 +35,12 @@ CFkModel::~CFkModel()
 
 void CFkModel::InitFkModel()
 {
-	mat = new double*[Nh+2];
-	new_mat = new double*[Nh+2];
-	s_mat = new double*[Nh+2];
-	new_s_mat = new double*[Nh+2];
-	f_mat = new double*[Nh+2];
-	new_f_mat = new double*[Nh+2];
-	for(int iH = 0; iH < Nh+2; ++iH)
-	{
-		mat[iH] = new double[Nw+2];
-		new_mat[iH] = new double[Nw+2];
-		s_mat[iH] = new double[Nw+2];
-		new_s_mat[iH] = new double[Nw+2];
-		f_mat[iH] = new double[Nw+2];
-		new_f_mat[iH] = new double[Nw+2];
-		for(int iW = 0; iW < Nw+2; ++iW)
-		{
-			mat[iH][iW] = 0.0;			
-			new_mat[iH][iW] = 0.0;
-			s_mat[iH][iW] = 0.0;
-			new_s_mat[iH][iW] = 0.0;
-			f_mat[iH][iW] = 0.0;
-			new_f_mat[iH][iW] = 0.0;			
-		}
-	}
+	mat = CreateMat();
+	new_mat = CreateMat();
+	s_mat = CreateMat();
+	new_s_mat = CreateMat();
+	f_mat = CreateMat();
+	new_f_mat = CreateMat();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -66,22 +48,12 @@ void CFkModel::InitFkModel()
 
 void CFkModel::DeleteFkModel()
 {
-	for(int iH = 0; iH < Nh+2; ++iH)
-	{
-		delete [] mat[iH];
-		delete [] new_mat[iH];
-		delete [] s_mat[iH];
-		delete [] new_s_mat[iH];
-		delete [] f_mat[iH];
-		delete [] new_f_mat[iH];
-	}
-
-	delete [] mat;
-	delete [] new_mat;
-	delete [] s_mat;
-	delete [] new_s_mat;
-	delete [] f_mat;
-	delete [] new_f_mat;
+	DestroyMat(mat);
+	DestroyMat(new_mat);
+	DestroyMat(s_mat);
+	DestroyMat(new_s_mat);
+	DestroyMat(f_mat);
+	DestroyMat(new_f_mat);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -89,9 +61,9 @@ void CFkModel::DeleteFkModel()
 
 void CFkModel::CleanupFkModel()
 {
-	for(int iH = 0; iH < Nh+2; ++iH)
+	for(int iH = 0; iH < Nh_with_border; ++iH)
 	{
-		for(int iW = 0; iW < Nw+2; ++iW)
+		for(int iW = 0; iW < Nw_with_border; ++iW)
 		{
 			mat[iH][iW] = 0.0;			
 			new_mat[iH][iW] = 0.0;
@@ -99,66 +71,6 @@ void CFkModel::CleanupFkModel()
 			new_s_mat[iH][iW] = 0.0;
 			f_mat[iH][iW] = 0.0;
 			new_f_mat[iH][iW] = 0.0;
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-bool CFkModel::SaveToInputFile(double** mat, char* fileName)
-{
-	char fullFilePath[FILE_NAME_BUFFER_SIZE] = {0};
-	sprintf(fullFilePath, "C:\\Users\\Shai\\Documents\\MATLAB\\MSc\\FkModel\\Input\\%s", fileName);
-	return SaveToFile(mat, fullFilePath);
-}
-
-bool CFkModel::SaveToOutputFile(double** mat, char* fileName)
-{
-	char fullFilePath[FILE_NAME_BUFFER_SIZE] = {0};
-	sprintf(fullFilePath, "C:\\Users\\Shai\\Documents\\MATLAB\\MSc\\FkModel\\Output\\%s", fileName);
-	return SaveToFile(mat, fullFilePath);
-}
-
-bool CFkModel::SaveToFile(double** mat, char* fileName)
-{
-	FILE* pFile = fopen(fileName, "w");
-	if(pFile == NULL)
-	{
-		return false;
-	}
-
-	for (int iH = 1; iH < Nh+1; ++iH)
-	{
-		for (int iW = 1; iW < Nw+1; ++iW)
-		{
-			fprintf(pFile, "%f ", mat[iH][iW]);
-		}
-		fprintf(pFile, "\n");
-	}
-	fclose(pFile);
-	return true;
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-const double SaveToFileInterval = 5.0;
-
-void CFkModel::SaveToFile(int iT, int& nFileNumber, double** mat, char* nameOfVar)
-{
-#ifndef SAVE_FK_MODEL_TO_FILE
-	return;
-#endif
-
-	if((nFileNumber*SaveToFileInterval) <= (iT*dt))
-	{		
-		char fileName[FILE_NAME_BUFFER_SIZE] = {0};
-		int n = sprintf(fileName, "C:\\Users\\Shai\\Documents\\MATLAB\\MSc\\FkModel\\Output\\SimulationOutput_%s_%d.txt", nameOfVar, nFileNumber);
-		if(SaveToFile(mat, fileName))
-		{
-			++nFileNumber;
-			// printf("Saved data to file %d at time: %.4f\n", nFileNumber-1, (iT*dt));
 		}
 	}
 }
@@ -215,16 +127,9 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 	int nsFileNumber = 0;
 	int nfFileNumber = 0;
 
-	SaveToFile(0, nFibroFileNumber, inFibroblastMat, "Fibroblasts"); 
-
 	// Start the temporal loop.
 	for (int iT = 0; iT < Nt; ++iT)
 	{   		
-		// Save the current data to the file.	
-		//SaveToFile(iT, nuFileNumber, mat, "u"); 
-		//SaveToFile(iT, nsFileNumber, s_mat, "s"); 
-		//SaveToFile(iT, nfFileNumber, f_mat, "f"); 
-		
 		// Calc the time in ms and check if we need to use the S1 protocol.
 		double curTime = iT*dt;
 		bool bS1 = ((curTime >= protParams.m_BeginTime) && (curTime <= (protParams.m_BeginTime+protParams.m_TotalTime)));
@@ -340,17 +245,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 		temp = f_mat;
 		f_mat = new_f_mat;
 		new_f_mat = temp;
-	}
-
-	//SaveToFile(Nt, nuFileNumber, mat, "u"); 
-	//SaveToFile(Nt, nsFileNumber, s_mat, "s"); 
-	//SaveToFile(Nt, nfFileNumber, f_mat, "f");
-	
-	//int n = 0;
-	//SaveToFile(Nt, n, outRiseTimeMat, "r");
-
-	// return mat;
-	//return rise_time_mat;
+	}	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
