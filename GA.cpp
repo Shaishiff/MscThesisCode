@@ -28,11 +28,17 @@ double** CreateMat()
 	return mat;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 void DestroyMat(double** mat)
 {
 	free(mat[0]);
 	free(mat);
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
 void PrintMat(double** mat)
 {
@@ -47,6 +53,9 @@ void PrintMat(double** mat)
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 bool SaveMatToFile(double** mat, char* fileName)
 {
 	char fullFileName[1024] = {0};
@@ -54,7 +63,7 @@ bool SaveMatToFile(double** mat, char* fileName)
 	FILE* pFile = fopen(fullFileName, "w");
 	if(pFile == NULL)
 	{
-		printf("ERROR ------------ Failed to open file: %s ------------ ERROR\n", fullFileName);
+		//printf("ERROR ------------ Failed to open file: %s ------------ ERROR\n", fullFileName);
 		return false;
 	}
 	
@@ -67,7 +76,7 @@ bool SaveMatToFile(double** mat, char* fileName)
 		fprintf(pFile, "\n");
 	}
 	fclose(pFile);
-	printf("Saved file: %s\n", fullFileName);
+	//printf("Saved file: %s\n", fullFileName);
 	return true;
 }
 
@@ -75,11 +84,12 @@ bool SaveMatToFile(double** mat, char* fileName)
 //////////////////////////////////////////////////////////////////////////////////////////
 
 FILE* pLogFile;
+char strLogSourceName[1024];
 char strLogFileName[1024];
 char strLog[1024];
-#define LOG printf("%s", strLog); fflush(stdout); \
+#define LOG printf("%s%s", strLogSourceName, strLog); fflush(stdout); \
 	pLogFile = fopen(strLogFileName, "a"); \
-	if(pLogFile != NULL){ fprintf(pLogFile,"%s", strLog); fclose(pLogFile); }
+	if(pLogFile != NULL){ fprintf(pLogFile,"%s%s", strLogSourceName, strLog); fclose(pLogFile); }
 
 Ga ga;
 
@@ -87,7 +97,6 @@ Ga ga;
 //////////////////////////////////////////////////////////////////////////////////////////
 
 int Ga::nNumberOfMachines = 0;
-int Ga::nCurIteration = 0;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +112,7 @@ void* ThreadFunction(void* arg)
 
 Ga::Ga()
 {
-	nCurIteration = 0;
+	m_nCurIteration = 0;
 	m_pTargetMeasurement1 = new double[Nw];
 	m_pTargetMeasurement2 = new double[Nh];
 	MinCost = NULL;
@@ -171,36 +180,35 @@ void Ga::InitGa()
 
 void Ga::CreateTargetMeasurements()
 {
+	sprintf(strLog, "CreateTargetMeasurements\n");
+	LOG	
 	MPI_Status status;
-	double dFlag = MPI_FLAG_START_JOB;
-	MPI_Send(&dFlag, 1, MPI_DOUBLE, 1, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
+	Candidate* pCandidate = new Candidate(-1);			
 	
-	// Send the actual matrix to process.						
-	Candidate* pCandidate = new Candidate(-1);		
-		
-	printf("ProcessJobs | Processing candidate %d | Machine: %d\n", pCandidate->m_nIndex, 1); fflush(stdout);
-	printf("ProcessJobs | Sending mat for processing | Machine: %d\n", 1); fflush(stdout);
-	MPI_Send(&(pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_JOB_MSG_TAG, MPI::COMM_WORLD);
-
-	char sentFileName[1024] = {"Sent.txt"};
-	SaveMatToFile(pCandidate->m_pFibroblastMat, sentFileName);
+	sprintf(strLog, "Sending fibroblasts\n");
+	LOG	
+	MPI_Send(&(pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_JOB_1_TAG, MPI::COMM_WORLD);
+	SaveMatToFile(pCandidate->m_pFibroblastMat, "TargetFibroblastMat.txt");
 	
 	// We wait for the result.
-	printf("ProcessJobs | Waiting to receive result mat 1 | Machine: %d\n", 1); fflush(stdout);
-	MPI_Recv(&(pCandidate->m_pResult1[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
-	printf("ProcessJobs | Received result mat 1 | Machine: %d\n", 1);  fflush(stdout);
+	sprintf(strLog, "Waiting to receive result mat 1 | Machine: %d\n", 1); 
+	LOG
+	MPI_Recv(&(pCandidate->m_pResult1[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_RESULT_TAG, MPI::COMM_WORLD, &status);
+	sprintf(strLog, "Received result mat 1 | Machine: %d\n", 1);
+	LOG
+	SaveMatToFile(pCandidate->m_pResult1, "TargetFibroblastMatResults1.txt");
+
+	sprintf(strLog, "Sending fibroblasts");
+	LOG	
+	MPI_Send(&(pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_JOB_2_TAG, MPI::COMM_WORLD);
 	
-	char result1FileName[1024] = {"Result1.txt"};
-	SaveMatToFile(pCandidate->m_pResult1, result1FileName);
+	sprintf(strLog, "Waiting to receive result mat 2 | Machine: %d\n", 1);
+	LOG
+	MPI_Recv(&(pCandidate->m_pResult2[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_RESULT_TAG, MPI::COMM_WORLD, &status);
+	sprintf(strLog, "Received result mat 2 | Machine: %d\n", 1);
+	LOG
+	SaveMatToFile(pCandidate->m_pResult2, "TargetFibroblastMatResults2.txt");
 	
-	printf("ProcessJobs | Waiting to receive result mat 2 | Machine: %d\n", 1);  fflush(stdout);
-	MPI_Recv(&(pCandidate->m_pResult2[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
-	printf("ProcessJobs | Received result mat 2 | Machine: %d\n", 1);  fflush(stdout);
-	
-	char result2FileName[1024] = {"Result2.txt"};
-	SaveMatToFile(pCandidate->m_pResult2, result2FileName);
-	
-	/*
 	for (int iW = 1; iW < Nw+1; ++iW)
 	{
 		m_pTargetMeasurement1[iW-1] = pCandidate->m_pResult1[Nh][iW];
@@ -209,7 +217,7 @@ void Ga::CreateTargetMeasurements()
 	{
 		m_pTargetMeasurement2[iH-1] = pCandidate->m_pResult2[iH][Nw];
 	}
-	*/
+	
 	/*
 	S1Protocol s1;
 	S2Protocol s2;
@@ -238,8 +246,8 @@ void Ga::CreateTargetMeasurements()
 	delete pModel;
 	pModel = NULL;
 	*/
-	//delete pCandidate;
-	//pCandidate = NULL;	
+	delete pCandidate;
+	pCandidate = NULL;	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -259,7 +267,7 @@ void Ga::ProcessJobs(int nStartPopIndex, int nEndPopIndex)
 			
 			// But we do need to calculate is cost if this is 
 			// the first iteration ever.
-			bAddJob |= (nCurIteration == 0);
+			bAddJob |= (m_nCurIteration == 0);
 			
 			if(bAddJob)
 			{	
@@ -272,16 +280,16 @@ void Ga::ProcessJobs(int nStartPopIndex, int nEndPopIndex)
 				{
 					case 0:
 					{
-						double dFlag = MPI_FLAG_START_JOB;
+						//double dFlag = MPI_FLAG_START_JOB;
 						printf("ProcessJobs | Sending start job flag | Machine: %d\n", nCurMachine); fflush(stdout);
-						MPI_Send(&dFlag, 1, MPI_DOUBLE, nCurMachine, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
+						//MPI_Send(&dFlag, 1, MPI_DOUBLE, nCurMachine, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
 						sleep(1);
 
 						// Send the actual matrix to process.						
 						double** mat = pCandidate->m_pFibroblastMat;
 						printf("ProcessJobs | Processing candidate %d | Machine: %d\n", pCandidate->m_nIndex, nCurMachine); fflush(stdout);
 						printf("ProcessJobs | Sending mat for processing | Machine: %d\n", nCurMachine); fflush(stdout);
-						MPI_Send(mat, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_JOB_MSG_TAG, MPI::COMM_WORLD);
+						//MPI_Send(mat, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_JOB_MSG_TAG, MPI::COMM_WORLD);
 						sleep(1);
 						break;
 					}
@@ -291,11 +299,11 @@ void Ga::ProcessJobs(int nStartPopIndex, int nEndPopIndex)
 		
 						// We wait for the result.
 						printf("ProcessJobs | Waiting to receive result mat 1 | Machine: %d\n", nCurMachine); fflush(stdout);
-						MPI_Recv(pCandidate->m_pResult1, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
+						//MPI_Recv(pCandidate->m_pResult1, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
 						printf("ProcessJobs | Received result mat 1 | Machine: %d\n", nCurMachine);  fflush(stdout);
 						
 						printf("ProcessJobs | Waiting to receive result mat 2 | Machine: %d\n", nCurMachine);  fflush(stdout);
-						MPI_Recv(pCandidate->m_pResult2, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
+						//MPI_Recv(pCandidate->m_pResult2, (Nw+2)*(Nh+2), MPI_DOUBLE, nCurMachine, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD, &status);
 						printf("ProcessJobs | Received result mat 2 | Machine: %d\n", nCurMachine);  fflush(stdout);
 						
 						/*	
@@ -331,6 +339,7 @@ void Ga::ProcessJobs(int nStartPopIndex, int nEndPopIndex)
 
 void Ga::JobProcessingThreadFunc(int nThreadIndex)
 {	
+/*
 	printf("JobProcessingThreadFunc | Started | Thread: %d\n", nThreadIndex);				
 	while(ga.GetThreadFlag(nThreadIndex))
 	{
@@ -402,6 +411,7 @@ void Ga::JobProcessingThreadFunc(int nThreadIndex)
 	
 	// No more jobs to process.
 	printf("JobProcessingThreadFunc | No more jobs, exiting | Thread: %d\n", nThreadIndex);
+	*/
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -421,7 +431,7 @@ void Ga::CalculateCosts()
 		
 		// But we do need to calculate is cost if this is 
 		// the first iteration ever.
-		bAddJob |= (nCurIteration == 0);
+		bAddJob |= (m_nCurIteration == 0);
 		
 		if(bAddJob)
 		{	
@@ -576,22 +586,18 @@ void Ga::CreateMutations()
 
 void Ga::RunGa()
 {
-	sprintf(strLog, "\nInit GA...\n");
+	sprintf(strLog, "Init GA...\n");
 	LOG
 	InitGa();
 
 	// Create and measure our target mat.
 	CreateTargetMeasurements();
 	
-	//
-	return;
-	//
-		
 	sprintf(strLog, "------------------\n");	
 	LOG
-	while(nCurIteration <= MaxIterations)
+	while(m_nCurIteration <= MaxIterations)
 	{
-		sprintf(strLog, "Starting iteration #%d\n", nCurIteration);
+		sprintf(strLog, "Starting iteration #%d\n", m_nCurIteration);
 		LOG
 		sprintf(strLog, "------------------\n");
 		LOG
@@ -617,20 +623,20 @@ void Ga::RunGa()
 		}
 
 		char bestCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-		sprintf(bestCandidateFileName, "BestCandidate_%d.txt", nCurIteration);
+		sprintf(bestCandidateFileName, "BestCandidate_%d.txt", m_nCurIteration);
 		SaveMatToFile(Population[0]->m_pFibroblastMat, bestCandidateFileName);
 
 		double dAvgCost = 0.0;
 		for(int iPop = 0; iPop < Npop; ++iPop)
 		{			
 			char fileName[FILE_NAME_BUFFER_SIZE] = {0};
-			sprintf(fileName, "Candidate_%d_%d.txt", nCurIteration, iPop);
+			sprintf(fileName, "Candidate_%d_%d.txt", m_nCurIteration, iPop);
 			SaveMatToFile(Population[iPop]->m_pFibroblastMat, fileName);
 
 			char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_1.txt", nCurIteration, iPop);
+			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_1.txt", m_nCurIteration, iPop);
 			SaveMatToFile(Population[iPop]->m_pResult1, riseTimeCandidateFileName);
-			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_2.txt", nCurIteration, iPop);
+			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_2.txt", m_nCurIteration, iPop);
 			SaveMatToFile(Population[iPop]->m_pResult2, riseTimeCandidateFileName);
 
 			dAvgCost += Population[iPop]->m_cost;
@@ -672,14 +678,14 @@ void Ga::RunGa()
 		}
     		         
 		CreateMutations();		
-		++nCurIteration;
+		++m_nCurIteration;
 
-		MinCost[nCurIteration] = Population[0]->m_cost;
+		MinCost[m_nCurIteration] = Population[0]->m_cost;
 		sprintf(strLog,"Avg Cost: %.3f\n", dAvgCost);
 		LOG
-		sprintf(strLog,"Min Cost: %.3f for %s\n", MinCost[nCurIteration], Population[0]->GetFullName());
+		sprintf(strLog,"Min Cost: %.3f for %s\n", MinCost[m_nCurIteration], Population[0]->GetFullName());
 		LOG
-		if(MinCost[nCurIteration] <= 0.0)
+		if(MinCost[m_nCurIteration] <= 0.0)
 		{
 			break;
 		}
@@ -718,8 +724,7 @@ void StartMainProcess(char* sMachineName)
 
 	for(int iProcess = 1; iProcess < Ga::nNumberOfMachines; ++iProcess)
 	{
-		double dFlag = MPI_FLAG_QUIT;
-		MPI_Send(&dFlag, 1, MPI_DOUBLE, iProcess, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD);
+		MPI_Send(NULL, 0, MPI_DOUBLE, iProcess, MPI_DIE_TAG, MPI::COMM_WORLD);
 		sprintf(strLog, "Sending quit flag to process %d\n", iProcess);
 		LOG
 	}
@@ -741,83 +746,63 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 		
 	// This is for all the other processes which are not the master.		
 	// Create all the vars we will use for data transfer.
-	double dFlag = 0.0;
 	MPI_Status status; // can save resources by using the predefined constant MPI_STATUS_IGNORE as a special value for the status argument.	
 	S1Protocol s1;
 	S2Protocol s2;
-	CFkModel* pModel = new CFkModel();	
-	double** fibroblast_mat = CreateMat();
-	double** result_mat = CreateMat();
-	double** result_mat2 = CreateMat();
 	
 	// Start the infinite loop (until the master tells us to quit).
 	sprintf(strLog, "Process %i on %s | Starting loop\n", nProcess, sMachineName);
 	LOG
 	while(true)
-	{
-		sprintf(strLog, "Process %i on %s | Waiting for flag\n", nProcess, sMachineName);
+	{			
+		CFkModel* pModel = new CFkModel();	
+		double** fibroblast_mat = CreateMat();
+		double** result_mat = CreateMat();
+		
+		sprintf(strLog, "Process %i on %s | Waiting to receive mat\n", nProcess, sMachineName);
 		LOG
-		MPI_Recv(&dFlag, 1, MPI_DOUBLE, MPI_MASTER, MPI_FLAG_MSG_TAG, MPI::COMM_WORLD, &status);
-		if(dFlag == MPI_FLAG_QUIT)
+		int nRet = MPI_Recv(&(fibroblast_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_ANY_TAG, MPI::COMM_WORLD, &status);
+		sprintf(strLog, "Process %i on %s | Mat received, res: %d\n", nProcess, sMachineName, nRet);
+		LOG
+		
+		if (status.MPI_TAG == MPI_JOB_1_TAG) 
 		{
-			sprintf(strLog, "Process %i on %s | Got a flag to quit\n", nProcess, sMachineName);
+			sprintf(strLog, "Process %i on %s | Executing 1st protocol.\n", nProcess, sMachineName);
+			LOG
+			pModel->ExecuteModel(fibroblast_mat, result_mat, s1);
+		}
+		else if (status.MPI_TAG == MPI_JOB_2_TAG) 
+		{
+			sprintf(strLog, "Process %i on %s | Executing 2nd protocol.\n", nProcess, sMachineName);
+			LOG
+			pModel->ExecuteModel(fibroblast_mat, result_mat, s2);
+		}
+		else if (status.MPI_TAG == MPI_DIE_TAG) 
+		{
+			sprintf(strLog, "Process %i on %s | Got the die tag. Aborting.\n", nProcess, sMachineName);
 			LOG
 			break;
 		}
-		else if (dFlag == MPI_FLAG_START_JOB)
-		{	
-			printf(strLog, "Process %i on %s | Got a flag to start job\n", nProcess, sMachineName); fflush(stdout);		
-			printf(strLog, "Process %i on %s | Waiting to receive mat\n", nProcess, sMachineName); fflush(stdout);
-			int nRet = MPI_Recv(&(fibroblast_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_JOB_MSG_TAG, MPI::COMM_WORLD, &status);
-			printf("Process %i on %s | Mat received, res: %d\n", nProcess, sMachineName, nRet); fflush(stdout);
-					
-			char filename[1024] = {"Received.txt"};
-			SaveMatToFile(fibroblast_mat, filename);
-			
-			// First protocol.
-			sprintf(strLog, "Process %i on %s | Executing 1st protocol\n", nProcess, sMachineName);
-			LOG
-			pModel->ExecuteModel(fibroblast_mat, result_mat, s1);
-			sprintf(strLog, "Process %i on %s | Finished 1st protocol, sending results\n", nProcess, sMachineName);
-			LOG
-			MPI_Send(&(result_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD);
-			sprintf(strLog, "Process %i on %s | 1st protocol results were sent\n", nProcess, sMachineName);
-			LOG		
-
-			char Results1BeforeSend[1024] = {"Results1BeforeSend.txt"};
-			SaveMatToFile(result_mat, Results1BeforeSend);
-			
-			// Second protocol.
-			sprintf(strLog, "Process %i on %s | Executing 2nd protocol\n", nProcess, sMachineName);
-			LOG
-			pModel->ExecuteModel(fibroblast_mat, result_mat2, s2);
-			sprintf(strLog, "Process %i on %s | Finished 2nd protocol, sending results\n", nProcess, sMachineName);
-			LOG
-			MPI_Send(&(result_mat2[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_RESULT_MSG_TAG, MPI::COMM_WORLD);
-			sprintf(strLog, "Process %i on %s | 2nd protocol results were sent\n", nProcess, sMachineName);
-			LOG		
-
-			char Results2BeforeSend[1024] = {"Results2BeforeSend.txt"};
-			SaveMatToFile(result_mat2, Results2BeforeSend);
-		}
 		else
 		{
-			sprintf(strLog, "Got an invalid flag. Process = %i on %s\n", nProcess, sMachineName);
+			sprintf(strLog, "Process %i on %s | Got an invalid tag. Aborting.\n", nProcess, sMachineName);
 			LOG
+			break;
 		}
+		
+		sprintf(strLog, "Process %i on %s | Finished executing protocol, sending results.\n", nProcess, sMachineName);
+		LOG		
+		MPI_Send(&(result_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_RESULT_TAG, MPI::COMM_WORLD);
+		sprintf(strLog, "Process %i on %s | Results were sent.\n", nProcess, sMachineName);
+		LOG	
+		
+		// Clear up the matrix we use for data transfer.
+		delete pModel;
+		pModel = NULL;
+		DestroyMat(fibroblast_mat);
+		DestroyMat(result_mat);
+		
 	} // End of loop.
-	
-	// Clear up the matrix we use for data transfer.
-	/*
-	for(int iH = 0; iH < Nh+2; ++iH)
-	{
-		delete [] mat[iH];
-		delete [] result_mat[iH];
-	}
-	delete [] mat;
-	delete [] result_mat;
-	delete status;
-	*/
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -856,6 +841,7 @@ int main(int argc, char *argv[])
 	
 	// Create the log file name.
 	sprintf(strLogFileName, "%s/Log_%i_on_%s.txt", LOG_FOLDER, nCurProcess, sMachineName);
+	sprintf(strLogSourceName, "Process %i on %s | ", nCurProcess, sMachineName);
 	
 	// Clear the current log file.
 	pLogFile = fopen(strLogFileName, "w");

@@ -36,7 +36,7 @@ public:
 	static int nNumberOfMachines;	
 	
 private:	
-	static int nCurIteration;
+	int m_nCurIteration;
 	double* m_pTargetMeasurement1;
 	double* m_pTargetMeasurement2;
 	double* MinCost;

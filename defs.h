@@ -24,13 +24,10 @@ using namespace std;
 const int MPI_MASTER = 0;
 
 // Msg tags:
-const int MPI_FLAG_MSG_TAG = 1000;
-const int MPI_JOB_MSG_TAG = 2000;
-const int MPI_RESULT_MSG_TAG = 3000;	
-
-// Flags:
-const int MPI_FLAG_QUIT = 1000;
-const int MPI_FLAG_START_JOB = 2000;
+const int MPI_DIE_TAG = 1000;
+const int MPI_JOB_1_TAG = 2000;
+const int MPI_JOB_2_TAG = 3000;
+const int MPI_RESULT_TAG = 4000;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // GA defines and consts
@@ -92,18 +89,19 @@ const int Nt = (int)(ceil(TotalSimulationTime/dt));
 #define dH 0.05 // cm/node
 #define W 2 // Width, x[cm]
 #define H 2 // Height, y[cm]
-#define Nw 40
-#define Nh 40
+const int Nw = (int)ceil(W/dW);
+const int Nh = (int)ceil(H/dH);
 #define Nw_with_border (Nw+2)
 #define Nh_with_border (Nh+2)
-//typedef double MAT[Nh_with_border][Nw_with_border];
-//const int Nw = (int)ceil(W/dW);
-//const int Nh = (int)ceil(H/dH);
 
 double** CreateMat();
 void DestroyMat(double** in);
 void PrintMat(double** mat);
 bool SaveMatToFile(double** mat, char* fileName);
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Protocols
+//////////////////////////////////////////////////////////////////////////////////////////
 
 struct ProtocolParams
 {
