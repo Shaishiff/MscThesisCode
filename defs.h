@@ -38,10 +38,9 @@ const int TargetCenterW = 5;
 const int TargetHeight = 25;
 const int TargetWidth = 25;
 
-#define MAX_NUMBER_OF_THREADS 100
-#define Npop 4//10
-#define MaxIterations 1
-#define SelectionRate 0.5//0.4
+#define Npop 10
+#define MaxIterations 100
+#define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
 #define Nmates (Npop - NsurvivingPopulation)
 

@@ -10,20 +10,17 @@ class Ga
 {
 public:
 	Ga();	
-	void RunGa();
-	void JobProcessingThreadFunc(int nThreadIndex);
-	void CreateTargetMeasurements();
-	static double CalculateCost(Candidate* pCandidate);
-	bool GetThreadFlag(int nThreadIndex) { return m_threadFlagArray[nThreadIndex]; }
+	void RunGa();	
 	
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 private:
 	void InitGa();
-	void CalculateCosts();
-	void ProcessJobs(int nStartPopIndex, int nEndPopIndex);
-	Job* GetJob() { return m_jobVector.GetJob(); }
+	void CreateTargetMeasurements();
+	void CreateJobs();
+	void ProcessJobs();
+	void ProcessResults();
 	int GetMate();
 	void CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild);
 	bool FindSimilarCandidate(int nIndex);
@@ -43,9 +40,6 @@ private:
 	double* Rank;
 	vector<Candidate*> Population;
 	CSafeJobVector m_jobVector;
-	int m_threadIndexArray[MAX_NUMBER_OF_THREADS];
-	bool m_threadFlagArray[MAX_NUMBER_OF_THREADS];
-	pthread_t m_threadHandleArray[MAX_NUMBER_OF_THREADS];	
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////

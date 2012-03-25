@@ -12,6 +12,8 @@
 struct Job
 {
 	Candidate* m_pCandidate;
+	int m_nJobType;
+	double** m_pResultsMat;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +24,10 @@ class CSafeJobVector
 public:
 	CSafeJobVector()
 	{		
+	}
+	int GetSize()
+	{
+		return (int)m_vec.size();
 	}
 	bool IsEmpty()
 	{
