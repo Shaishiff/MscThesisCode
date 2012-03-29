@@ -38,7 +38,7 @@ const int TargetCenterW = 5;
 const int TargetHeight = 25;
 const int TargetWidth = 25;
 
-#define Npop 10
+#define Npop 20
 #define MaxIterations 100
 #define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
@@ -78,20 +78,20 @@ const double kwm = 10;
 // Simulation consts
 //////////////////////////////////////////////////////////////////////////////////////////
 
-// Time parameters:
-const double dt = 0.02; // millisec
-const double TotalSimulationTime = 200; // Total time of simulation
-const int Nt = (int)(ceil(TotalSimulationTime/dt));
-
 // Space parameters
 #define dW 0.05 // cm/node
 #define dH 0.05 // cm/node
-#define W 2 // Width, x[cm]
-#define H 2 // Height, y[cm]
+#define W 3 // Width, x[cm]
+#define H 3 // Height, y[cm]
 const int Nw = (int)ceil(W/dW);
 const int Nh = (int)ceil(H/dH);
 #define Nw_with_border (Nw+2)
 #define Nh_with_border (Nh+2)
+
+// Time parameters:
+const double dt = 0.02; // millisec
+const double TotalSimulationTime = max(W,H)*100; // Total time of simulation
+const int Nt = (int)(ceil(TotalSimulationTime/dt));
 
 double** CreateMat();
 void DestroyMat(double** in);

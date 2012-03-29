@@ -36,7 +36,7 @@ private:
 	int m_nCurIteration;
 	double* m_pTargetMeasurement1;
 	double* m_pTargetMeasurement2;
-	double* MinCost;
+	unsigned long int* MinCost;
 	double* Rank;
 	vector<Candidate*> Population;
 	CSafeJobVector m_jobVector;

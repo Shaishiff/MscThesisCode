@@ -87,10 +87,19 @@ FILE* pLogFile;
 char strLogSourceName[1024];
 char strLogFileName[1024];
 char strLog[1024];
-#define LOG printf("%s%s\n", strLogSourceName, strLog); fflush(stdout); \
+#define PRINTLOG printf("%s%s\n", strLogSourceName, strLog); fflush(stdout); \
 	pLogFile = fopen(strLogFileName, "a"); \
-	if(pLogFile != NULL){ fprintf(pLogFile,"%s%s\n", strLogSourceName, strLog); fclose(pLogFile); }
+	if(pLogFile != NULL) \
+	{ fprintf(pLogFile,"%s%s\n", strLogSourceName, strLog); fclose(pLogFile); }
 
+#define LOG(log) 						sprintf(strLog, log); \
+										PRINTLOG
+#define LOG1(log, var1) 				sprintf(strLog, log, var1); \
+										PRINTLOG
+#define LOG2(log, var1, var2)			sprintf(strLog, log, var1, var2); \
+										PRINTLOG
+#define LOG3(log, var1, var2, var3)		sprintf(strLog, log, var1, var2, var3); \
+										PRINTLOG
 Ga ga;
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -119,16 +128,12 @@ void Ga::InitGa()
 	{		
 		Candidate* pCandidate = new Candidate(iPop);
 		Population.push_back(pCandidate);
-
-		char fileName[FILE_NAME_BUFFER_SIZE] = {0};
-		sprintf(fileName, "OriginalCandidate_%d.txt", iPop);
-		SaveMatToFile(pCandidate->m_pFibroblastMat, fileName);
 	}
 
-	MinCost = new double[MaxIterations];
+	MinCost = new unsigned long int[MaxIterations];
 	for(int iteration=0; iteration < MaxIterations; ++iteration)
 	{
-		MinCost[iteration] = 0.0;
+		MinCost[iteration] = 0;
 	}
 	
 	int nRankSum = 0;
@@ -165,33 +170,27 @@ void Ga::InitGa()
 
 void Ga::CreateTargetMeasurements()
 {
-	sprintf(strLog, "CreateTargetMeasurements");
-	LOG	
+	LOG("CreateTargetMeasurements");
 	MPI_Status status;
 	Candidate* pCandidate = new Candidate(-1);			
 	
-	sprintf(strLog, "Sending fibroblasts");
-	LOG	
+	LOG("Sending fibroblasts");
 	MPI_Send(&(pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_JOB_1_TAG, MPI::COMM_WORLD);
 	SaveMatToFile(pCandidate->m_pFibroblastMat, "TargetFibroblastMat.txt");
 	
 	// We wait for the result.
-	sprintf(strLog, "Waiting to receive result mat 1 | Machine: %d", 1); 
-	LOG
+	LOG1("Waiting to receive result mat 1 | Machine: %d", 1); 
+	
 	MPI_Recv(&(pCandidate->m_pResult1[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_RESULT_TAG, MPI::COMM_WORLD, &status);
-	sprintf(strLog, "Received result mat 1 | Machine: %d", 1);
-	LOG
+	LOG1("Received result mat 1 | Machine: %d", 1);
 	SaveMatToFile(pCandidate->m_pResult1, "TargetFibroblastMatResults1.txt");
 
-	sprintf(strLog, "Sending fibroblasts");
-	LOG	
+	LOG("Sending fibroblasts");	
 	MPI_Send(&(pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_JOB_2_TAG, MPI::COMM_WORLD);
 	
-	sprintf(strLog, "Waiting to receive result mat 2 | Machine: %d", 1);
-	LOG
+	LOG1("Waiting to receive result mat 2 | Machine: %d", 1);
 	MPI_Recv(&(pCandidate->m_pResult2[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_RESULT_TAG, MPI::COMM_WORLD, &status);
-	sprintf(strLog, "Received result mat 2 | Machine: %d", 1);
-	LOG
+	LOG1("Received result mat 2 | Machine: %d", 1);
 	SaveMatToFile(pCandidate->m_pResult2, "TargetFibroblastMatResults2.txt");
 	
 	for (int iW = 1; iW < Nw+1; ++iW)
@@ -240,8 +239,7 @@ void Ga::CreateTargetMeasurements()
 
 void Ga::CreateJobs()
 {
-	sprintf(strLog, "CreateJobs started");
-	LOG
+	LOG("CreateJobs started");
 	for (int nPopIndex = 0; nPopIndex < Npop; ++nPopIndex)
 	{			
 		// We don't need to recalculate the first candidate because
@@ -267,8 +265,7 @@ void Ga::CreateJobs()
 			m_jobVector.AddJob(pJob2);
 		}
 	}
-	sprintf(strLog, "CreateJobs finished, total number of jobs: %d", m_jobVector.GetSize());
-	LOG
+	LOG1("CreateJobs finished, total number of jobs: %d", m_jobVector.GetSize());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -276,8 +273,7 @@ void Ga::CreateJobs()
 
 void Ga::ProcessJobs()
 {
-	sprintf(strLog, "ProcessJobs started");
-	LOG
+	LOG("------------- ProcessJobs started -------------");
 	
 	int nCurProcess = 1;
 	MPI_Request* requestArray = new MPI_Request[nNumberOfMachines-1];
@@ -288,28 +284,22 @@ void Ga::ProcessJobs()
 		Job* pJob = m_jobVector.GetJob();
 		if(pJob == NULL)
 		{
-			sprintf(strLog, "ProcessJobs finished");
-			LOG
+			LOG("ProcessJobs finished");
 			break;
 		}
 		
-		sprintf(strLog, "ProcessJobs, processing job - Candidate: #%d, JobType: %d", pJob->m_pCandidate->m_nIndex, pJob->m_nJobType);
-		LOG
-		sprintf(strLog, "ProcessJobs, Sending job to process #%d", nCurProcess);
-		LOG
+		LOG2("ProcessJobs, processing job - Candidate: #%d, JobType: %d", pJob->m_pCandidate->m_nIndex, pJob->m_nJobType);
+		LOG1("ProcessJobs, Sending job to process #%d", nCurProcess);
 		MPI_Send(&(pJob->m_pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, nCurProcess, pJob->m_nJobType, MPI::COMM_WORLD);
-		sprintf(strLog, "ProcessJobs, Async wait for job from process #%d", nCurProcess);
-		LOG
+		LOG1("ProcessJobs, Async wait for job from process #%d", nCurProcess);
 		MPI_Irecv(&(pJob->m_pResultsMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, nCurProcess, MPI_RESULT_TAG, MPI::COMM_WORLD, &requestArray[nCurProcess-1]);
 		
 		if(nCurProcess == (nNumberOfMachines-1))
 		{
-			sprintf(strLog, "ProcessJobs, Wait for all pending jobs to finish");
-			LOG
+			LOG("ProcessJobs, Wait for all pending jobs to finish");
 			MPI_Waitall(nNumberOfMachines-1, requestArray, statusArray);
 			nCurProcess = 1;
-			sprintf(strLog, "ProcessJobs, Wait is over, continue processing jobs");
-			LOG
+			LOG("ProcessJobs, Wait is over, continue processing jobs");
 		}
 		else
 		{
@@ -319,6 +309,8 @@ void Ga::ProcessJobs()
 		delete pJob;
 		pJob == NULL;
 	}
+	
+	LOG("------------- ProcessJobs ended -------------");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -326,34 +318,31 @@ void Ga::ProcessJobs()
 
 void Ga::ProcessResults()
 {
-	sprintf(strLog, "ProcessResults started");
-	LOG
+	LOG("ProcessResults started");
 	for (int nPopIndex = 0; nPopIndex < Npop; ++nPopIndex)
 	{
 		Candidate* pCandidate = Population[nPopIndex];
-		char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-		sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_1.txt", 0, pCandidate->m_nIndex);
-		SaveMatToFile(pCandidate->m_pResult1, riseTimeCandidateFileName);
-		sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_2.txt", 0, pCandidate->m_nIndex);
-		SaveMatToFile(pCandidate->m_pResult2, riseTimeCandidateFileName);
-		
+				
 		// Calculate the cost for this candidate.
 		pCandidate->m_cost = 0;
 		
 		// Calculate cost from result 1.
 		for (int iW = 1; iW < Nw+1; ++iW)
 		{
-			pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult1[Nh][iW] - m_pTargetMeasurement1[iW]));
+			int nCandidateResult = (int)ceil(pCandidate->m_pResult1[Nh][iW]);
+			int nTargetResult = (int)ceil(m_pTargetMeasurement1[iW]);
+			pCandidate->m_cost += (unsigned long int)std::abs(nCandidateResult - nTargetResult);
 		}
 
 		// Calculate cost from result 2.
 		for (int iH = 1; iH < Nh+1; ++iH)
 		{
-			pCandidate->m_cost += std::abs((long int)(pCandidate->m_pResult2[iH][Nw] - m_pTargetMeasurement2[iH]));
+			int nCandidateResult = (int)ceil(pCandidate->m_pResult2[iH][Nw]);
+			int nTargetResult = (int)ceil(m_pTargetMeasurement2[iH]);
+			pCandidate->m_cost += (unsigned long int)std::abs(nCandidateResult - nTargetResult);
 		}
 		
-		sprintf(strLog, "ProcessResults, current cost for candidate #%d: %d", pCandidate->m_nIndex, pCandidate->m_cost);
-		LOG
+		LOG3("ProcessResults, current cost for candidate #%d, %s: %d", pCandidate->m_nIndex, pCandidate->GetFullName(), pCandidate->m_cost);
 	}
 }	
 	
@@ -383,10 +372,8 @@ void Ga::CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild
 		throw;
 	}
 		
-	sprintf(strLog,"Parent1, Candidate #%d: %s", pParent1->m_nIndex, pParent1->GetFullName());
-	LOG
-	sprintf(strLog,"Parent2, Candidate #%d: %s", pParent2->m_nIndex, pParent2->GetFullName());
-	LOG
+	LOG2("Parent1, Candidate #%d: %s", pParent1->m_nIndex, pParent1->GetFullName());	
+	LOG2("Parent2, Candidate #%d: %s", pParent2->m_nIndex, pParent2->GetFullName());
 
 	pChild->m_nCenterH = pParent1->m_nCenterH;
 	pChild->m_nCenterW = pParent1->m_nCenterW;
@@ -428,10 +415,8 @@ void Ga::CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild
 	}
 
 	pChild->CreateFibroblasts();
-	sprintf(strLog,"Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());	
-	LOG
-	sprintf(strLog,"-");
-	LOG
+	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());	
+	LOG("-");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -448,8 +433,7 @@ bool Ga::FindSimilarCandidate(int nIndex)
 			   Population[iPop]->m_nHeight == Population[nIndex]->m_nHeight &&
 			   Population[iPop]->m_nWidth == Population[nIndex]->m_nWidth)
 			{
-				sprintf(strLog,"Candiates are identical, #%d & #%d", nIndex, iPop);
-				LOG
+				LOG2("Candiates are identical, #%d & #%d", nIndex, iPop);
 				return true;
 			}
 		}
@@ -462,14 +446,11 @@ bool Ga::FindSimilarCandidate(int nIndex)
 
 void Ga::CreateMutations()
 {
-	sprintf(strLog,"Starting mutations...");
-	LOG
-	sprintf(strLog,"--");
-	LOG
+	LOG("Starting mutations...");
+	LOG("--");	
 	for(int iPop = 1; iPop < Npop; ++iPop)
 	{
-		sprintf(strLog,"Candiate #%d before mutation: %s", iPop, Population[iPop]->GetFullName());
-		LOG
+		LOG2("Candiate #%d before mutation: %s", iPop, Population[iPop]->GetFullName());
 		Population[iPop]->Mutate();
 		while(FindSimilarCandidate(iPop))
 		{
@@ -477,11 +458,9 @@ void Ga::CreateMutations()
 			Population[iPop]->Mutate();
 		}
 		Population[iPop]->CreateFibroblasts();
-		Population[iPop]->m_cost = 0.0;
-		sprintf(strLog,"Candiate #%d after mutation : %s", iPop, Population[iPop]->GetFullName());
-		LOG
-		sprintf(strLog,"-");
-		LOG
+		Population[iPop]->m_cost = 0;
+		LOG2("Candiate #%d after mutation : %s", iPop, Population[iPop]->GetFullName());
+		LOG("-");
 	}
 }
 
@@ -490,21 +469,26 @@ void Ga::CreateMutations()
 
 void Ga::RunGa()
 {
-	sprintf(strLog, "Init GA...");
-	LOG
+	LOG("Init GA...");
 	InitGa();
 
 	// Create and measure our target mat.
 	CreateTargetMeasurements();
 	
-	sprintf(strLog, "------------------");	
-	LOG
+	// Create min cost file
+	char minCostFileName[1024] = {0};
+	sprintf(minCostFileName, "%s/MinCost.txt", LOG_FOLDER);
+	FILE* pMinCostFile = fopen(minCostFileName, "w");
+	if(pMinCostFile != NULL)
+	{
+		fclose(pMinCostFile);
+	}
+	
+	LOG("------------------");
 	while(m_nCurIteration <= MaxIterations)
 	{
-		sprintf(strLog, "Starting iteration #%d", m_nCurIteration);
-		LOG
-		sprintf(strLog, "------------------");
-		LOG
+		LOG1("Starting iteration #%d", m_nCurIteration);
+		LOG("------------------");
 		clock_t iterationStartingTime = clock();
 	
 		// Determine the cost function for each member of the population.
@@ -513,47 +497,38 @@ void Ga::RunGa()
 		ProcessResults();
 
 		// Sort according to the cost and then mate according to the rank.
-		sprintf(strLog, "Sorting the population...");
-		LOG
+		LOG("Sorting the population...");
 		std::sort(Population.begin(), Population.end(), CandidateCompare);
 		for(int iPop = 0; iPop < Npop; ++iPop)
 		{
 			Population[iPop]->m_nIndex = iPop;
+			LOG3("ProcessResults, current cost for candidate #%d, %s: %d", Population[iPop]->m_nIndex, Population[iPop]->GetFullName(), Population[iPop]->m_cost);
 		}
-
-		char bestCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-		sprintf(bestCandidateFileName, "BestCandidate_%d.txt", m_nCurIteration);
-		SaveMatToFile(Population[0]->m_pFibroblastMat, bestCandidateFileName);
-
-		double dAvgCost = 0.0;
+		
+		unsigned long int nTotalCost = 0;
 		for(int iPop = 0; iPop < Npop; ++iPop)
-		{			
-			char fileName[FILE_NAME_BUFFER_SIZE] = {0};
-			sprintf(fileName, "Candidate_%d_%d.txt", m_nCurIteration, iPop);
-			SaveMatToFile(Population[iPop]->m_pFibroblastMat, fileName);
-
+		{					
 			char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_1.txt", m_nCurIteration, iPop);
+			sprintf(riseTimeCandidateFileName, "RiseTime_Itr%d_Indx%d_Prot1.txt", m_nCurIteration, iPop);
 			SaveMatToFile(Population[iPop]->m_pResult1, riseTimeCandidateFileName);
-			sprintf(riseTimeCandidateFileName, "CandidateRiseTime_%d_%d_2.txt", m_nCurIteration, iPop);
+			sprintf(riseTimeCandidateFileName, "RiseTime_Itr%d_Indx%d_Prot2.txt", m_nCurIteration, iPop);
 			SaveMatToFile(Population[iPop]->m_pResult2, riseTimeCandidateFileName);
 
-			dAvgCost += Population[iPop]->m_cost;
+			nTotalCost += Population[iPop]->m_cost;
 		}
-		dAvgCost = dAvgCost/Npop;
+		double dAvgCost = nTotalCost/Npop;
 
 		// Create the next generation.		
-		sprintf(strLog,"--");
-		LOG
-		sprintf(strLog,"Creating the next generation...");
-		LOG
-		sprintf(strLog,"--");
-		LOG
+		LOG("--");
+		LOG("Creating the next generation...");
+		LOG1("Need to create %d offspring in total", Nmates);
+		LOG("--");
 		int iOffspring = 0;
 		while(iOffspring < Nmates)
 		{	
 			if(iOffspring == 0)
 			{
+				LOG1("Creating offspring %d", iOffspring+1);
 				Candidate* Parent1 = Population[0];
 				Candidate* Parent2 = Population[0];
 				CreateChild(Parent1, Parent2, Population[NsurvivingPopulation + iOffspring]);
@@ -565,6 +540,7 @@ void Ga::RunGa()
 				int nSecondParent = GetMate();
 				if(nFirstParent != nSecondParent)
 				{
+					LOG1("Creating offspring %d", iOffspring+1);
 					Candidate* Parent1 = Population[nFirstParent];
 					Candidate* Parent2 = Population[nSecondParent];
 				
@@ -580,21 +556,23 @@ void Ga::RunGa()
 		++m_nCurIteration;
 
 		MinCost[m_nCurIteration] = Population[0]->m_cost;
-		sprintf(strLog,"Avg Cost: %.3f", dAvgCost);
-		LOG
-		sprintf(strLog,"Min Cost: %.3f for %s", MinCost[m_nCurIteration], Population[0]->GetFullName());
-		LOG
-		if(MinCost[m_nCurIteration] <= 0.0)
+		LOG1("Avg Cost: %.3f", dAvgCost);
+		LOG2("Min Cost: %d for %s", MinCost[m_nCurIteration], Population[0]->GetFullName());
+		pMinCostFile = fopen(minCostFileName, "a");
+		if(pMinCostFile != NULL)
+		{
+			fprintf(pMinCostFile, "Iteration: %d, MinCost: %d, Mat: %s\n", m_nCurIteration, MinCost[m_nCurIteration], Population[0]->GetFullName());
+			fclose(pMinCostFile);
+		}
+		if(MinCost[m_nCurIteration] == 0)
 		{
 			break;
 		}
 
 		clock_t iterationEndingTime = clock();
 		double iterationRunningTime = (iterationEndingTime - iterationStartingTime)/double(CLOCKS_PER_SEC);
-		sprintf(strLog,"Iteration duration: %.3f seconds", iterationRunningTime);
-		LOG
-		sprintf(strLog,"------------------");
-		LOG
+		LOG1("Iteration duration: %.3f seconds", iterationRunningTime);
+		LOG("------------------");
 	}	
 }
 
@@ -603,8 +581,7 @@ void Ga::RunGa()
 
 void StartMainProcess(char* sMachineName)
 {
-	sprintf(strLog, "Starting the main process on %s", sMachineName);
-	LOG
+	LOG("Starting main process");
 	
 	// This is for the controlling master process.
 	srand((unsigned int)time(NULL));
@@ -618,15 +595,13 @@ void StartMainProcess(char* sMachineName)
 	for(int iProcess = 1; iProcess < Ga::nNumberOfMachines; ++iProcess)
 	{
 		MPI_Send(NULL, 0, MPI_DOUBLE, iProcess, MPI_DIE_TAG, MPI::COMM_WORLD);
-		sprintf(strLog, "Sending quit flag to process %d", iProcess);
-		LOG
+		LOG1("Sending quit flag to process %d", iProcess);
 	}
 	
 	// End timing.
 	clock_t mainEndingTime = clock();
 	double mainRunningTime = (mainEndingTime - mainStartingTime)/double(CLOCKS_PER_SEC);
-	sprintf(strLog, "Main duration: %.3f seconds", mainRunningTime);
-	LOG
+	LOG1("Main duration: %.3f seconds", mainRunningTime);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -634,8 +609,7 @@ void StartMainProcess(char* sMachineName)
 
 void StartSlaveProcess(int nProcess, char* sMachineName)
 {
-	sprintf(strLog, "Process %i on %s | Starting", nProcess, sMachineName);
-	LOG
+	LOG("Starting slave process");
 		
 	// This is for all the other processes which are not the master.		
 	// Create all the vars we will use for data transfer.
@@ -644,50 +618,41 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 	S2Protocol s2;
 	
 	// Start the infinite loop (until the master tells us to quit).
-	sprintf(strLog, "Process %i on %s | Starting loop", nProcess, sMachineName);
-	LOG
+	LOG("Starting loop");
 	while(true)
 	{			
 		CFkModel* pModel = new CFkModel();	
 		double** fibroblast_mat = CreateMat();
 		double** result_mat = CreateMat();
 		
-		sprintf(strLog, "Process %i on %s | Waiting to receive mat", nProcess, sMachineName);
-		LOG
+		LOG("Waiting to receive mat");		
 		int nRet = MPI_Recv(&(fibroblast_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_ANY_TAG, MPI::COMM_WORLD, &status);
-		sprintf(strLog, "Process %i on %s | Mat received, res: %d", nProcess, sMachineName, nRet);
-		LOG
+		LOG1("Mat received, res: %d", nRet);
 		
 		if (status.MPI_TAG == MPI_JOB_1_TAG) 
 		{
-			sprintf(strLog, "Process %i on %s | Executing 1st protocol.", nProcess, sMachineName);
-			LOG
+			LOG("Executing 1st protocol");
 			pModel->ExecuteModel(fibroblast_mat, result_mat, s1);
 		}
 		else if (status.MPI_TAG == MPI_JOB_2_TAG) 
 		{
-			sprintf(strLog, "Process %i on %s | Executing 2nd protocol.", nProcess, sMachineName);
-			LOG
+			LOG("Executing 2nd protocol");
 			pModel->ExecuteModel(fibroblast_mat, result_mat, s2);
 		}
 		else if (status.MPI_TAG == MPI_DIE_TAG) 
 		{
-			sprintf(strLog, "Process %i on %s | Got the die tag. Aborting.", nProcess, sMachineName);
-			LOG
+			LOG("Got the die tag. Exiting...");
 			break;
 		}
 		else
 		{
-			sprintf(strLog, "Process %i on %s | Got an invalid tag. Aborting.", nProcess, sMachineName);
-			LOG
+			LOG("Got an invalid tag. Aborting !");
 			break;
 		}
 		
-		sprintf(strLog, "Process %i on %s | Finished executing protocol, sending results.", nProcess, sMachineName);
-		LOG		
+		LOG("Finished executing protocol, sending results.");
 		MPI_Send(&(result_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_RESULT_TAG, MPI::COMM_WORLD);
-		sprintf(strLog, "Process %i on %s | Results were sent.", nProcess, sMachineName);
-		LOG	
+		LOG("Results were sent.");
 		
 		// Clear up the matrix we use for data transfer.
 		delete pModel;
@@ -739,13 +704,8 @@ int main(int argc, char *argv[])
 	// Clear the current log file.
 	pLogFile = fopen(strLogFileName, "w");
 	if(pLogFile != NULL) { fclose(pLogFile); }
-		
-	sprintf(strLog, "Starting process = %i on %s, out of %i processes", nCurProcess, sMachineName, Ga::nNumberOfMachines);
-	LOG
 	
-	sprintf(strLog, "MPI Init ret: %d, provided thread support: %d for process = %i on %s, out of %i processes", nMpiIntRet, nProvided, nCurProcess, sMachineName, Ga::nNumberOfMachines);
-	LOG
-	
+	// Start the appropriate process: master/slave
 	if(nCurProcess == MPI_MASTER)
 	{		
 		StartMainProcess(sMachineName);		
@@ -755,7 +715,7 @@ int main(int argc, char *argv[])
 		StartSlaveProcess(nCurProcess, sMachineName);
 	}
 	
-	printf("Ending process = %i on %s, out of %i processes\n", nCurProcess, sMachineName, Ga::nNumberOfMachines);
+	LOG("Ending process");
 	MPI_Finalize();
 		
 	return 0;
@@ -763,14 +723,3 @@ int main(int argc, char *argv[])
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-
-// TODO:
-// Create threads the same number as the number of slave processes.
-// Each thread will take a job from the queue and process it.
-// Processing involves: Executing model, saving results and measurements and updating the cost
-// of the specific jobs candidate.
-// The thread will exit when the queue is empty.
-// On exit the thread will signal that it's done and this is how the master process
-// will know he can continue on.
-// Don't forget that when master process exists he needs to signal all other slave
-// processes to exit as well by sending them the appropriate flag.

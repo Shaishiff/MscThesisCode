@@ -17,7 +17,7 @@ Candidate::Candidate(int nIndex)
 	
 	// Init the vars.
 	m_nIndex = nIndex;
-	m_cost = 0.0;
+	m_cost = 0;
 	m_nCenterH = 0;
 	m_nCenterW = 0;
 	m_nHeight = 0;

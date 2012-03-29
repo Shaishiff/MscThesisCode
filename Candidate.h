@@ -23,7 +23,7 @@ public:
 	double** m_pResult1;
 	double** m_pResult2;		
 	int m_nIndex;
-	double m_cost;
+	unsigned long int m_cost;
 	int m_nCenterH;
 	int m_nCenterW;
 	int m_nHeight;
