@@ -12,5 +12,5 @@ exec: test
 	${mpiRun} -m ${mpd} --rsh=/usr/bin/ssh -n 20 /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe
 
 test: Candidate.cpp FkModel.cpp GA.cpp
-	${mpiCC} safeJobVector.cpp Candidate.cpp FkModel.cpp GA.cpp -g -o /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe ${OPT} ${INCL} ${LIBS}
+	${mpiCC} Mat.cpp safeJobVector.cpp Candidate.cpp FkModel.cpp GA.cpp -g -o /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe ${OPT} ${INCL} ${LIBS}
 

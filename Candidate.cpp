@@ -37,8 +37,8 @@ Candidate::Candidate(int nIndex)
 		// Create a random fibroblast mat.
 		m_nCenterH = rand()%int(Nh) + 1;
 		m_nCenterW = rand()%int(Nw) + 1;
-		m_nHeight = rand()%int(Nh) + 1;
-		m_nWidth = rand()%int(Nw) + 1;
+		m_nHeight = rand()%int(Nh-m_nCenterH) + 1;
+		m_nWidth = rand()%int(Nw-m_nCenterW) + 1;
 	}
 	CreateFibroblasts();
 }

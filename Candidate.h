@@ -13,7 +13,11 @@ public:
 	void CreateFibroblasts();
 	void Mutate();
 	void UnMutate();
-	char* GetFullName() { return m_cCandidateFullName; }
+	char* GetFullName() 
+	{ 
+		sprintf(m_cCandidateFullName,"(%d,%d) %dX%d", m_nCenterH, m_nCenterW, m_nHeight, m_nWidth);
+		return m_cCandidateFullName; 
+	}
 	
 private:
 	void ClearMat();
@@ -28,14 +32,15 @@ public:
 	int m_nCenterW;
 	int m_nHeight;
 	int m_nWidth;
-
-	char m_cCandidateFullName[256];
 	
 	// Mutation.
 	int m_nParam1;
 	int m_nParam2;
 	int m_nVal1;
 	int m_nVal2;
+	
+private:
+	char m_cCandidateFullName[256];
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////

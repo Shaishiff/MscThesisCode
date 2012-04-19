@@ -2,83 +2,8 @@
 #include <pthread.h>
 #include "GA.h"
 #include "FkModel.h"
-
-#define LOG_FOLDER "/a/home/cc/students/enginer/shaishif/Logs"
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-double** CreateMat()
-{
-	double* data = (double *)malloc(Nh_with_border*Nw_with_border*sizeof(double));
-    double** mat = (double **)malloc(Nh_with_border*sizeof(double*));
-    for (int i = 0; i < Nh_with_border; i++)
-	{
-        mat[i] = &(data[Nw_with_border*i]);
-	}
-	
-	for (int iH = 0; iH < Nh_with_border; ++iH)
-	{
-		for (int iW = 0; iW < Nw_with_border; ++iW)
-		{
-			mat[iH][iW] = 0.0;
-		}
-	}
-	
-	return mat;
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-void DestroyMat(double** mat)
-{
-	free(mat[0]);
-	free(mat);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-void PrintMat(double** mat)
-{
-	printf("Printing mat\n"); fflush(stdout);
-	for (int iH = 1; iH < Nh+1; ++iH)
-	{
-		for (int iW = 1; iW < Nw+1; ++iW)
-		{
-			printf("%d,%d: %f\n", iH, iW, mat[iH][iW]); 
-			fflush(stdout);
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-bool SaveMatToFile(double** mat, char* fileName)
-{
-	char fullFileName[1024] = {0};
-	sprintf(fullFileName, "%s/%s", LOG_FOLDER, fileName);
-	FILE* pFile = fopen(fullFileName, "w");
-	if(pFile == NULL)
-	{
-		//printf("ERROR ------------ Failed to open file: %s ------------ ERROR\n", fullFileName);
-		return false;
-	}
-	
-	for (int iH = 1; iH < Nh+1; ++iH)
-	{
-		for (int iW = 1; iW < Nw+1; ++iW)
-		{
-			fprintf(pFile, "%4.0f ", mat[iH][iW]);
-		}
-		fprintf(pFile, "\n");
-	}
-	fclose(pFile);
-	//printf("Saved file: %s\n", fullFileName);
-	return true;
-}
+#include "Mat.h"
+#include "Log.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -87,24 +12,11 @@ FILE* pLogFile;
 char strLogSourceName[1024];
 char strLogFileName[1024];
 char strLog[1024];
-#define PRINTLOG printf("%s%s\n", strLogSourceName, strLog); fflush(stdout); \
-	pLogFile = fopen(strLogFileName, "a"); \
-	if(pLogFile != NULL) \
-	{ fprintf(pLogFile,"%s%s\n", strLogSourceName, strLog); fclose(pLogFile); }
 
-#define LOG(log) 						sprintf(strLog, log); \
-										PRINTLOG
-#define LOG1(log, var1) 				sprintf(strLog, log, var1); \
-										PRINTLOG
-#define LOG2(log, var1, var2)			sprintf(strLog, log, var1, var2); \
-										PRINTLOG
-#define LOG3(log, var1, var2, var3)		sprintf(strLog, log, var1, var2, var3); \
-										PRINTLOG
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 Ga ga;
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
 int Ga::nNumberOfMachines = 0;
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -116,7 +28,7 @@ Ga::Ga()
 	m_pTargetMeasurement1 = new double[Nw];
 	m_pTargetMeasurement2 = new double[Nh];
 	MinCost = NULL;
-	Rank = NULL;	
+	Rank = NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -454,7 +366,9 @@ void Ga::CreateMutations()
 		Population[iPop]->Mutate();
 		while(FindSimilarCandidate(iPop))
 		{
+			LOG2("Candiate #%d before unmutation: %s", iPop, Population[iPop]->GetFullName());
 			Population[iPop]->UnMutate();
+			LOG2("Candiate #%d after unmutation : %s", iPop, Population[iPop]->GetFullName());
 			Population[iPop]->Mutate();
 		}
 		Population[iPop]->CreateFibroblasts();
@@ -481,10 +395,12 @@ void Ga::RunGa()
 	FILE* pMinCostFile = fopen(minCostFileName, "w");
 	if(pMinCostFile != NULL)
 	{
+		fprintf(pMinCostFile, "Iteration | MinCost | Mat\n");
 		fclose(pMinCostFile);
 	}
 	
 	LOG("------------------");
+	int nLastMinCostCounter = 0;
 	while(m_nCurIteration <= MaxIterations)
 	{
 		LOG1("Starting iteration #%d", m_nCurIteration);
@@ -507,13 +423,23 @@ void Ga::RunGa()
 		
 		unsigned long int nTotalCost = 0;
 		for(int iPop = 0; iPop < Npop; ++iPop)
-		{					
-			char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-			sprintf(riseTimeCandidateFileName, "RiseTime_Itr%d_Indx%d_Prot1.txt", m_nCurIteration, iPop);
-			SaveMatToFile(Population[iPop]->m_pResult1, riseTimeCandidateFileName);
-			sprintf(riseTimeCandidateFileName, "RiseTime_Itr%d_Indx%d_Prot2.txt", m_nCurIteration, iPop);
-			SaveMatToFile(Population[iPop]->m_pResult2, riseTimeCandidateFileName);
-
+		{	
+			if(iPop == 0) // To save space of txt files...
+			{
+				char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
+				sprintf(riseTimeCandidateFileName, "RiseTime_Itr%d_Indx%d_Prot1.txt", m_nCurIteration, iPop);
+				SaveMatToFile(Population[iPop]->m_pResult1, riseTimeCandidateFileName);
+				sprintf(riseTimeCandidateFileName, "RiseTime_Itr%d_Indx%d_Prot2.txt", m_nCurIteration, iPop);
+				SaveMatToFile(Population[iPop]->m_pResult2, riseTimeCandidateFileName);
+			}
+			else
+			{
+				char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
+				sprintf(riseTimeCandidateFileName, "Extra/RiseTime_Itr%d_Indx%d_Prot1.txt", m_nCurIteration, iPop);
+				SaveMatToFile(Population[iPop]->m_pResult1, riseTimeCandidateFileName);
+				sprintf(riseTimeCandidateFileName, "Extra/RiseTime_Itr%d_Indx%d_Prot2.txt", m_nCurIteration, iPop);
+				SaveMatToFile(Population[iPop]->m_pResult2, riseTimeCandidateFileName);
+			}
 			nTotalCost += Population[iPop]->m_cost;
 		}
 		double dAvgCost = nTotalCost/Npop;
@@ -553,24 +479,43 @@ void Ga::RunGa()
 		}
     		         
 		CreateMutations();		
-		++m_nCurIteration;
-
+		
 		MinCost[m_nCurIteration] = Population[0]->m_cost;
 		LOG1("Avg Cost: %.3f", dAvgCost);
 		LOG2("Min Cost: %d for %s", MinCost[m_nCurIteration], Population[0]->GetFullName());
 		pMinCostFile = fopen(minCostFileName, "a");
 		if(pMinCostFile != NULL)
 		{
-			fprintf(pMinCostFile, "Iteration: %d, MinCost: %d, Mat: %s\n", m_nCurIteration, MinCost[m_nCurIteration], Population[0]->GetFullName());
+			fprintf(pMinCostFile, "%d | %d | %s\n", m_nCurIteration, MinCost[m_nCurIteration], Population[0]->GetFullName());
 			fclose(pMinCostFile);
 		}
 		if(MinCost[m_nCurIteration] == 0)
 		{
+			LOG("Reached zero cost. Breaking the iterations !");
 			break;
 		}
-
+		if(m_nCurIteration != 0)
+		{
+			if(MinCost[m_nCurIteration] == MinCost[m_nCurIteration-1])
+			{
+				nLastMinCostCounter++;
+				if(nLastMinCostCounter == 10)
+				{
+					LOG("Reached a dead end in the costs. Breaking the iterations !");
+					break;
+				}				
+			}
+			else
+			{
+				nLastMinCostCounter = 0;
+			}			
+		}
+		++m_nCurIteration;
+		
 		clock_t iterationEndingTime = clock();
 		double iterationRunningTime = (iterationEndingTime - iterationStartingTime)/double(CLOCKS_PER_SEC);
+		LOG1("Iteration start: %d", iterationStartingTime);
+		LOG1("Iteration end: %d", iterationEndingTime);
 		LOG1("Iteration duration: %.3f seconds", iterationRunningTime);
 		LOG("------------------");
 	}	
@@ -629,6 +574,9 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 		int nRet = MPI_Recv(&(fibroblast_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_ANY_TAG, MPI::COMM_WORLD, &status);
 		LOG1("Mat received, res: %d", nRet);
 		
+		// Start timing.
+		clock_t startingTime = clock();
+					
 		if (status.MPI_TAG == MPI_JOB_1_TAG) 
 		{
 			LOG("Executing 1st protocol");
@@ -650,7 +598,11 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 			break;
 		}
 		
-		LOG("Finished executing protocol, sending results.");
+		// End timing.
+		clock_t endingTime = clock();
+		double runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);
+		
+		LOG1("Finished executing protocol after %.3f seconds, sending results.", runningTime);
 		MPI_Send(&(result_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_RESULT_TAG, MPI::COMM_WORLD);
 		LOG("Results were sent.");
 		

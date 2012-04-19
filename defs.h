@@ -33,12 +33,7 @@ const int MPI_RESULT_TAG = 4000;
 // GA defines and consts
 //////////////////////////////////////////////////////////////////////////////////////////
 
-const int TargetCenterH = 5;
-const int TargetCenterW = 5;
-const int TargetHeight = 25;
-const int TargetWidth = 25;
-
-#define Npop 20
+#define Npop 10
 #define MaxIterations 100
 #define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
@@ -79,14 +74,20 @@ const double kwm = 10;
 //////////////////////////////////////////////////////////////////////////////////////////
 
 // Space parameters
-#define dW 0.05 // cm/node
-#define dH 0.05 // cm/node
-#define W 3 // Width, x[cm]
-#define H 3 // Height, y[cm]
+#define dW 0.02 // cm/node
+#define dH 0.02 // cm/node
+#define W 2 // Width, x[cm]
+#define H 2 // Height, y[cm]
 const int Nw = (int)ceil(W/dW);
 const int Nh = (int)ceil(H/dH);
 #define Nw_with_border (Nw+2)
 #define Nh_with_border (Nh+2)
+
+// The values here are in cell indexes:
+const int TargetCenterH = 20;
+const int TargetCenterW = 40;
+const int TargetHeight = 20;
+const int TargetWidth = 40;
 
 // Time parameters:
 const double dt = 0.02; // millisec
@@ -118,7 +119,7 @@ const double S1Amp = 500.0; // microA/cm^3
 const double S1TotalTime = 5; // milliseconds
 const double S1BeginTime = 5.0; // milliseconds
 const double S1hStart = 0.0;
-const double S1hEnd = dH;
+const double S1hEnd = dH*2;
 const double S1wStart = 0.0;
 const double S1wEnd = W;
 
@@ -142,7 +143,7 @@ const double S2BeginTime = 5.0; // milliseconds
 const double S2hStart = 0.0;
 const double S2hEnd = H;
 const double S2wStart = 0.0;
-const double S2wEnd = dW;
+const double S2wEnd = dW*2;
 
 struct S2Protocol : public ProtocolParams
 {
