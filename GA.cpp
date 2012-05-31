@@ -68,6 +68,73 @@ void Ga::InitGa()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+bool ReadIntoArray(ifstream& myfile, double** arr)
+{
+	int iH = 1;
+    int iW = 1;
+	char s[10] = {0};
+	while(!myfile.eof())
+    {
+		myfile.getline(s, 10, ' ');
+		arr[iH][iW] = atof(s);
+		iW++;
+		if(iW == Nw+1)
+		{           
+			iH++;
+			if(iH == Nh+1)
+			{
+				return true;
+			}
+			iW = 1;
+		}
+    }
+	return false;
+}
+
+void Ga::ReadTargetMeasurements()
+{
+	//double* m_pTargetMeasurement1 = new double[Nw];
+	//double* m_pTargetMeasurement2 = new double[Nh];
+	double** arr = CreateMat();
+    ifstream myfile;
+
+	myfile.open("TargetFibroblastMatResults1.txt");
+	if(!myfile.is_open()) //Always test the file open.
+    {        
+		DestroyMat(arr);
+        return;
+    }
+    if(!ReadIntoArray(myfile, arr))
+	{
+		DestroyMat(arr);
+        return;
+	}
+	for (int iW = 1; iW < Nw+1; ++iW)
+	{
+		m_pTargetMeasurement1[iW-1] = arr[Nh][iW];
+	}
+	myfile.close();
+
+	myfile.open("TargetFibroblastMatResults2.txt");
+    if(!myfile.is_open()) //Always test the file open.
+    {        
+		DestroyMat(arr);
+        return;
+    }
+    if(!ReadIntoArray(myfile, arr))
+	{
+		DestroyMat(arr);
+        return;
+	}
+	for (int iH = 1; iH < Nh+1; ++iH)
+	{
+		m_pTargetMeasurement2[iH-1] = arr[iH][Nw];
+	}
+	myfile.close();
+
+	DestroyMat(arr);
+}
+
 void Ga::CreateTargetMeasurements()
 {
 	LOG("CreateTargetMeasurements");
