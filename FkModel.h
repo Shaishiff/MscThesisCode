@@ -12,7 +12,7 @@ class CFkModel
 public:
 	CFkModel();
 	virtual ~CFkModel();
-	void ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams);
+	void ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams, char* outputFolder = NULL);
 
 private:
 	void InitFkModel();

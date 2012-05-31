@@ -8,7 +8,6 @@
 // Includes
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#include <mpi.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "math.h"
@@ -33,7 +32,7 @@ const int MPI_RESULT_TAG = 4000;
 // GA defines and consts
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define Npop 10
+#define Npop 15
 #define MaxIterations 100
 #define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
@@ -45,7 +44,7 @@ const int MPI_RESULT_TAG = 4000;
 
 const double Cm = 1.0; // membrance capacitance - microF/cm^2
 const double Am = 3000.0; // 1/cm
-const double sigma = 0.75; // 0.3; 3.0*10^-4; mS/cm
+const double sigma = 13.865; // 0.3; 3.0*10^-4; mS/cm
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // APD & CV Restitution
@@ -74,24 +73,24 @@ const double kwm = 10;
 //////////////////////////////////////////////////////////////////////////////////////////
 
 // Space parameters
-#define dW 0.02 // cm/node
-#define dH 0.02 // cm/node
-#define W 2 // Width, x[cm]
-#define H 2 // Height, y[cm]
+#define dW 0.01 // cm/node
+#define dH 0.01 // cm/node
+#define W 1 // Width, x[cm]
+#define H 1 // Height, y[cm]
 const int Nw = (int)ceil(W/dW);
 const int Nh = (int)ceil(H/dH);
 #define Nw_with_border (Nw+2)
 #define Nh_with_border (Nh+2)
 
 // The values here are in cell indexes:
-const int TargetCenterH = 20;
+const int TargetCenterH = 40;
 const int TargetCenterW = 40;
 const int TargetHeight = 20;
-const int TargetWidth = 40;
+const int TargetWidth = 20;
 
 // Time parameters:
-const double dt = 0.02; // millisec
-const double TotalSimulationTime = max(W,H)*100; // Total time of simulation
+const double dt = 0.005; // millisec
+const double TotalSimulationTime = max(W,H)*400; // Total time of simulation
 const int Nt = (int)(ceil(TotalSimulationTime/dt));
 
 double** CreateMat();
@@ -112,16 +111,24 @@ struct ProtocolParams
 	double m_hEnd;
 	double m_wStart;
 	double m_wEnd;
+	double m_hMeasureStart;
+	double m_hMeasureEnd;
+	double m_wMeasureStart;
+	double m_wMeasureEnd;
 };
 
 // Protocol parameters:
-const double S1Amp = 500.0; // microA/cm^3
+const double S1Amp = 5000.0;//500.0; // microA/cm^3
 const double S1TotalTime = 5; // milliseconds
-const double S1BeginTime = 5.0; // milliseconds
+const double S1BeginTime = 2.0; // milliseconds
 const double S1hStart = 0.0;
 const double S1hEnd = dH*2;
 const double S1wStart = 0.0;
 const double S1wEnd = W;
+const double S1hMeasureStart = H;
+const double S1hMeasureEnd = H;
+const double S1wMeasureStart = 0.0;
+const double S1wMeasureEnd = W;
 
 struct S1Protocol : public ProtocolParams
 {
@@ -134,16 +141,24 @@ struct S1Protocol : public ProtocolParams
 		m_hEnd = S1hEnd;
 		m_wStart = S1wStart;
 		m_wEnd = S1wEnd;
+		m_hMeasureStart = S1hMeasureStart;
+		m_hMeasureEnd = S1hMeasureEnd;
+		m_wMeasureStart = S1wMeasureStart;
+		m_wMeasureEnd = S1wMeasureEnd;
 	}
 };
 
-const double S2Amp = 500.0; // microA/cm^3
+const double S2Amp = 5000.0;//500.0; // microA/cm^3
 const double S2TotalTime = 5; // milliseconds
-const double S2BeginTime = 5.0; // milliseconds
+const double S2BeginTime = 2.0; // milliseconds
 const double S2hStart = 0.0;
 const double S2hEnd = H;
 const double S2wStart = 0.0;
 const double S2wEnd = dW*2;
+const double S2hMeasureStart = 0.0;
+const double S2hMeasureEnd = H;
+const double S2wMeasureStart = W;
+const double S2wMeasureEnd = W;
 
 struct S2Protocol : public ProtocolParams
 {
@@ -156,6 +171,10 @@ struct S2Protocol : public ProtocolParams
 		m_hEnd = S2hEnd;
 		m_wStart = S2wStart;
 		m_wEnd = S2wEnd;
+		m_hMeasureStart = S2hMeasureStart;
+		m_hMeasureEnd = S2hMeasureEnd;
+		m_wMeasureStart = S2wMeasureStart;
+		m_wMeasureEnd = S2wMeasureEnd;
 	}
 };
 

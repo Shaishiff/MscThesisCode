@@ -3,6 +3,7 @@
 
 #include "defs.h"
 #include "FkModel.h"
+#include "Mat.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -110,7 +111,9 @@ void CFkModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams)
+#define INVALID_RISE_TIME	1000.0
+
+void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams, char* outputFolder)
 {	
 	CleanupFkModel();
 	double t_ung = 0.0;
@@ -122,10 +125,22 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 	double tau_f = 0.0;
 	double J_fast  = 0.0;
 	double Jion = 0.0;
-	int nFibroFileNumber = 0;
-	int nuFileNumber = 0;
-	int nsFileNumber = 0;
-	int nfFileNumber = 0;
+	double dFirstRiseTime = 0.0;
+	
+	for (int iH = 1; iH < Nh+1; ++iH)
+	{
+		for (int iW = 1; iW < Nw+1; ++iW)
+		{            
+			if(inFibroblastMat[iH][iW] != 1)
+			{
+				outRiseTimeMat[iH][iW] = INVALID_RISE_TIME;
+			}
+			else
+			{
+				outRiseTimeMat[iH][iW] = -1.0;
+			}
+		}
+	}
 
 	// Start the temporal loop.
 	for (int iT = 0; iT < Nt; ++iT)
@@ -134,17 +149,27 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 		double curTime = iT*dt;
 		bool bS1 = ((curTime >= protParams.m_BeginTime) && (curTime <= (protParams.m_BeginTime+protParams.m_TotalTime)));
 		
+		if(outputFolder != NULL)
+		{
+			if(iT%200 == 0)
+			{
+				char modelOutput[FILE_NAME_BUFFER_SIZE] = {0};
+				//sprintf(modelOutput, "ModelOutput_at_%.2f.txt", curTime);
+				//SaveMatToFile(mat, modelOutput, outputFolder);
+				
+				sprintf(modelOutput, "%s\\ModelOutput_at_%.2f.txt", outputFolder, curTime);				
+				SaveMatToFileWithFullName(mat, modelOutput);
+				printf("Saved file %s\n", modelOutput);
+			}
+		}
+		
 		// Start the spatial loop.
 		for (int iH = 1; iH < Nh+1; ++iH)
 		{
 			for (int iW = 1; iW < Nw+1; ++iW)
 			{            
-				if(inFibroblastMat[iH][iW] == 1)
-				{
-					outRiseTimeMat[iH][iW] = TotalSimulationTime*2;
-				}
-				else
-				{
+				if(inFibroblastMat[iH][iW] != 1)
+				{					
 					CalculateDer(iH, iW, inFibroblastMat);
 					
 					double Jstim = 0.0;
@@ -152,18 +177,25 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 					{
 						double curH = iH*dH;
 						double curW = iW*dW;
-						if(curH >= protParams.m_hStart && curH <= protParams.m_hEnd && curW >= protParams.m_wStart && curW <= protParams.m_wEnd)
+						if(curH >= protParams.m_hStart &&
+						   curH <= protParams.m_hEnd &&
+						   curW >= protParams.m_wStart &&
+						   curW <= protParams.m_wEnd)
 						{
 							Jstim = S1Amp;
 						}
 					}
 
 					double v = mat[iH][iW];
-					if((v > 0.95) && (outRiseTimeMat[iH][iW] == 0.0))
+					if((v > 0.3) && (outRiseTimeMat[iH][iW] == INVALID_RISE_TIME))
 					{
-						if(Jstim == 0.0)
-						{
-							outRiseTimeMat[iH][iW] = iT*dt;
+						//if(Jstim == 0.0)
+						{							
+							if(dFirstRiseTime == 0.0)
+							{
+								dFirstRiseTime = iT*dt;
+							}
+							outRiseTimeMat[iH][iW] = iT*dt - dFirstRiseTime;
 						}
 					}
 
@@ -245,6 +277,32 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 		temp = f_mat;
 		f_mat = new_f_mat;
 		new_f_mat = temp;
+
+		bool bStopSim = true;
+		for (int iH = 1; iH < Nh+1; ++iH)
+		{
+			for (int iW = 1; iW < Nw+1; ++iW)
+			{            									
+				double curH = iH*dH;
+				double curW = iW*dW;
+				if(curH >= protParams.m_hMeasureStart &&
+				   curH <= protParams.m_hMeasureEnd &&
+				   curW >= protParams.m_wMeasureStart &&
+				   curW <= protParams.m_wMeasureEnd)
+				{
+					if(outRiseTimeMat[iH][iW] == INVALID_RISE_TIME)
+					{
+						bStopSim = false;
+						break;
+					}
+				}
+			}
+		}
+
+		if(bStopSim)
+		{
+			break;
+		}		
 	}	
 }
 

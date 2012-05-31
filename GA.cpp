@@ -63,18 +63,6 @@ void Ga::InitGa()
 			Rank[iRank-1] = Rank[iRank-1] + Rank[iRank-2];
 		}
 	}
-	
-	/*
-	// Create the threads which will allocate the jobs to the
-	// different machines. We start from 1 (and not 0) because
-	// 0 is the index of the master machine (which runs the main program).
-	sprintf(strLog, "Creating %d threads to communicate with the slave processes\n", nNumberOfMachines-1);
-	LOG
-    for(int iThread = 1; iThread < nNumberOfMachines; iThread++)
-	{		
-		int nRet = pthread_create(&m_threadHandleArray[iThread], NULL, ThreadFunction, (void*)(&m_threadIndexArray[iThread]));
-	} 
-	*/	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -84,27 +72,26 @@ void Ga::CreateTargetMeasurements()
 {
 	LOG("CreateTargetMeasurements");
 	MPI_Status status;
-	Candidate* pCandidate = new Candidate(-1);			
-	
-	LOG("Sending fibroblasts");
-	MPI_Send(&(pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_JOB_1_TAG, MPI::COMM_WORLD);
+	Candidate* pCandidate = new Candidate(-1);
 	SaveMatToFile(pCandidate->m_pFibroblastMat, "TargetFibroblastMat.txt");
 	
-	// We wait for the result.
-	LOG1("Waiting to receive result mat 1 | Machine: %d", 1); 
+	// Execute the simulation for all protocols.
+	CFkModel* pModel = new CFkModel();
+	LOG("Executing 1st protocol");
+	char modelOutput[1024] = {0};
+	sprintf(modelOutput, "%s/Output", LOG_FOLDER);
+	S1Protocol s1;			
+	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult1, s1, modelOutput);
+	LOG("Executing 2nd protocol");
+	S2Protocol s2;
+	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult2, s2);
 	
-	MPI_Recv(&(pCandidate->m_pResult1[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_RESULT_TAG, MPI::COMM_WORLD, &status);
-	LOG1("Received result mat 1 | Machine: %d", 1);
+	// Save the results to our log files.
+	LOG("Saving results to file");
 	SaveMatToFile(pCandidate->m_pResult1, "TargetFibroblastMatResults1.txt");
-
-	LOG("Sending fibroblasts");	
-	MPI_Send(&(pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_JOB_2_TAG, MPI::COMM_WORLD);
-	
-	LOG1("Waiting to receive result mat 2 | Machine: %d", 1);
-	MPI_Recv(&(pCandidate->m_pResult2[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, 1, MPI_RESULT_TAG, MPI::COMM_WORLD, &status);
-	LOG1("Received result mat 2 | Machine: %d", 1);
 	SaveMatToFile(pCandidate->m_pResult2, "TargetFibroblastMatResults2.txt");
 	
+	// Save the measurements.
 	for (int iW = 1; iW < Nw+1; ++iW)
 	{
 		m_pTargetMeasurement1[iW-1] = pCandidate->m_pResult1[Nh][iW];
@@ -114,36 +101,10 @@ void Ga::CreateTargetMeasurements()
 		m_pTargetMeasurement2[iH-1] = pCandidate->m_pResult2[iH][Nw];
 	}
 	
-	/*
-	S1Protocol s1;
-	S2Protocol s2;
-	CFkModel* pModel = new CFkModel();	
-	Candidate* pTargetCandidate = new Candidate(-1);		
-	
-	pModel->ExecuteModel(pTargetCandidate->GetFibroblastMat(), pTargetCandidate->m_pResult1, s1);	
-	for (int iW = 1; iW < Nw+1; ++iW)
-	{
-		m_pTargetMeasurement1[iW-1] = pTargetCandidate->m_pResult1[Nh][iW];
-	}
-	
-	pModel->ExecuteModel(pTargetCandidate->GetFibroblastMat(), pTargetCandidate->m_pResult2, s2);
-	for (int iH = 1; iH < Nh+1; ++iH)
-	{
-		m_pTargetMeasurement2[iH-1] = pTargetCandidate->m_pResult2[iH][Nw];
-	}
-	*/
-	/*
-	SaveMatToFile(pCandidate->m_pResult1, "TargetRiseTime1.txt");
-	SaveMatToFile(pCandidate->m_pResult2, "TargetRiseTime2.txt");
-	sprintf(strLog, "Target: %s\n", pCandidate->GetFullName());
-	LOG
-	*/
-	/*
+	delete pCandidate;
+	pCandidate = NULL;
 	delete pModel;
 	pModel = NULL;
-	*/
-	delete pCandidate;
-	pCandidate = NULL;	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -156,13 +117,13 @@ void Ga::CreateJobs()
 	{			
 		// We don't need to recalculate the first candidate because
 		// it hasn't been mutated.
-		bool bAddJob = (Population[nPopIndex]->m_nIndex != 0);
+		// bool bAddJob = (Population[nPopIndex]->m_nIndex != 0);
 		
-		// But we do need to calculate is cost if this is 
+		// But we do need to calculate its cost if this is 
 		// the first iteration ever.
-		bAddJob |= (m_nCurIteration == 0);
+		// bAddJob |= (m_nCurIteration == 0);
 		
-		if(bAddJob)
+		// if(bAddJob)
 		{	
 			Job* pJob1 = new Job();
 			pJob1->m_pCandidate = Population[nPopIndex];
@@ -188,8 +149,9 @@ void Ga::ProcessJobs()
 	LOG("------------- ProcessJobs started -------------");
 	
 	int nCurProcess = 1;
-	MPI_Request* requestArray = new MPI_Request[nNumberOfMachines-1];
-	MPI_Status* statusArray = new MPI_Status[nNumberOfMachines-1];
+	int nNumberOfSlaveMachines = (nNumberOfMachines-1);
+	MPI_Request* requestArray = new MPI_Request[nNumberOfSlaveMachines];
+	MPI_Status* statusArray = new MPI_Status[nNumberOfSlaveMachines];
 
 	while(true)
 	{	
@@ -206,10 +168,10 @@ void Ga::ProcessJobs()
 		LOG1("ProcessJobs, Async wait for job from process #%d", nCurProcess);
 		MPI_Irecv(&(pJob->m_pResultsMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, nCurProcess, MPI_RESULT_TAG, MPI::COMM_WORLD, &requestArray[nCurProcess-1]);
 		
-		if(nCurProcess == (nNumberOfMachines-1))
+		if(nCurProcess == (nNumberOfSlaveMachines))
 		{
 			LOG("ProcessJobs, Wait for all pending jobs to finish");
-			MPI_Waitall(nNumberOfMachines-1, requestArray, statusArray);
+			MPI_Waitall(nNumberOfSlaveMachines, requestArray, statusArray);
 			nCurProcess = 1;
 			LOG("ProcessJobs, Wait is over, continue processing jobs");
 		}
@@ -454,10 +416,8 @@ void Ga::RunGa()
 		{	
 			if(iOffspring == 0)
 			{
-				LOG1("Creating offspring %d", iOffspring+1);
-				Candidate* Parent1 = Population[0];
-				Candidate* Parent2 = Population[0];
-				CreateChild(Parent1, Parent2, Population[NsurvivingPopulation + iOffspring]);
+				LOG("The first offspring will be a (mutated) clone of the best candidate");				
+				CreateChild(Population[0], Population[0], Population[NsurvivingPopulation]);
 				++iOffspring;
 			}
 			else
@@ -499,6 +459,14 @@ void Ga::RunGa()
 			if(MinCost[m_nCurIteration] == MinCost[m_nCurIteration-1])
 			{
 				nLastMinCostCounter++;
+				/*
+				if(nLastMinCostCounter >= 5)
+				{
+					LOG("We're starting to reach a dead end in the costs. Creating an additional clone of the best candidate !");					
+					CreateChild(Population[0], Population[0], Population[Npop-1]);
+					// Need to mutate and create mat...
+				}
+				*/
 				if(nLastMinCostCounter == 10)
 				{
 					LOG("Reached a dead end in the costs. Breaking the iterations !");
@@ -566,7 +534,7 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 	LOG("Starting loop");
 	while(true)
 	{			
-		CFkModel* pModel = new CFkModel();	
+		CFkModel* pModel = new CFkModel();
 		double** fibroblast_mat = CreateMat();
 		double** result_mat = CreateMat();
 		
@@ -623,24 +591,6 @@ int main(int argc, char *argv[])
 	int nProvided = -1;
 	int nMpiIntRet = MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &nProvided);	
 	srand((unsigned int)time(NULL));	
-	/*
-	if(nProvided == MPI_THREAD_SINGLE)
-	{
-		printf("MPI_THREAD_SINGLE\n");
-	}
-	else if(nProvided == MPI_THREAD_FUNNELED)
-	{
-		printf("MPI_THREAD_FUNNELED\n");
-	}
-	else if(nProvided == MPI_THREAD_SERIALIZED)
-	{
-		printf("MPI_THREAD_SERIALIZED\n");
-	}
-	else if(nProvided == MPI_THREAD_MULTIPLE)
-	{
-		printf("MPI_THREAD_MULTIPLE\n");
-	}
-	*/
 	
 	// Getting general info about MPI.
 	int nCpuNameLen = MPI_MAX_PROCESSOR_NAME;

@@ -53,14 +53,31 @@ void PrintMat(double** mat)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-bool SaveMatToFile(double** mat, char* fileName)
+bool SaveMatToFileWithFullNameIntFormat(double** mat, char* fullFileName)
 {
-	char fullFileName[1024] = {0};
-	sprintf(fullFileName, "%s/%s", LOG_FOLDER, fileName);
 	FILE* pFile = fopen(fullFileName, "w");
 	if(pFile == NULL)
 	{
-		//printf("ERROR ------------ Failed to open file: %s ------------ ERROR\n", fullFileName);
+		return false;
+	}
+	
+	for (int iH = 0; iH <= Nh+1; ++iH)
+	{
+		for (int iW = 0; iW <= Nw+1; ++iW)
+		{
+			fprintf(pFile, "%d", (int)ceil(mat[iH][iW]));
+		}
+		fprintf(pFile, "\n");
+	}
+	fclose(pFile);
+	return true;
+}
+
+bool SaveMatToFileWithFullName(double** mat, char* fullFileName)
+{
+	FILE* pFile = fopen(fullFileName, "w");
+	if(pFile == NULL)
+	{
 		return false;
 	}
 	
@@ -68,13 +85,31 @@ bool SaveMatToFile(double** mat, char* fileName)
 	{
 		for (int iW = 1; iW < Nw+1; ++iW)
 		{
-			fprintf(pFile, "%4.0f ", mat[iH][iW]);
+			fprintf(pFile, "%4.3f ", mat[iH][iW]);
 		}
 		fprintf(pFile, "\n");
 	}
 	fclose(pFile);
-	//printf("Saved file: %s\n", fullFileName);
 	return true;
+}
+
+bool SaveMatToFile(double** mat, char* fileName)
+{
+	return SaveMatToFile(mat, fileName, NULL);
+}
+
+bool SaveMatToFile(double** mat, char* fileName, char* folder)
+{
+	char fullFileName[1024] = {0};
+	if(folder == NULL)
+	{
+		sprintf(fullFileName, "%s/%s", LOG_FOLDER, fileName);
+	}
+	else
+	{
+		sprintf(fullFileName, "%s/%s", folder, fileName);
+	}
+	return SaveMatToFileWithFullName(mat, fullFileName);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

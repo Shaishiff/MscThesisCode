@@ -22,6 +22,11 @@ Candidate::Candidate(int nIndex)
 	m_nCenterW = 0;
 	m_nHeight = 0;
 	m_nWidth = 0;	
+	m_nParam1 = 0;
+	m_nParam2 = 0;
+	m_nVal1 = 0;
+	m_nVal2 = 0;
+	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
 	
 	// Now create the fibroblats.
 	if(nIndex == -1)
@@ -91,7 +96,6 @@ void Candidate::CreateFibroblasts()
 			m_pFibroblastMat[iH][iW] = 1.0;
 		}
 	}
-	sprintf(m_cCandidateFullName,"(%d,%d) %dX%d", m_nCenterH, m_nCenterW, m_nHeight, m_nWidth);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
