@@ -9,6 +9,7 @@ class Candidate
 {
 public:
 	Candidate(int nIndex);
+	Candidate(int nCenterH, int nCenterW, int nHeight, int nWidth);
 	virtual ~Candidate();	
 	void CreateFibroblasts();
 	void Mutate();

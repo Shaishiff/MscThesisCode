@@ -83,10 +83,10 @@ const int Nh = (int)ceil(H/dH);
 #define Nh_with_border (Nh+2)
 
 // The values here are in cell indexes:
-const int TargetCenterH = 40;
+const int TargetCenterH = 50;
 const int TargetCenterW = 40;
-const int TargetHeight = 20;
-const int TargetWidth = 20;
+const int TargetHeight = 15;
+const int TargetWidth = 25;
 
 // Time parameters:
 const double dt = 0.005; // millisec

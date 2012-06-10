@@ -51,6 +51,34 @@ Candidate::Candidate(int nIndex)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+Candidate::Candidate(int nCenterH, int nCenterW, int nHeight, int nWidth)
+{
+	// Create the mats.
+	m_pFibroblastMat = CreateMat();
+	m_pResult1 = CreateMat();
+	m_pResult2 = CreateMat();
+	ClearMat();
+	
+	// Init the vars.
+	m_nIndex = 0;
+	m_cost = 0;
+	m_nCenterH = nCenterH;
+	m_nCenterW = nCenterW;
+	m_nHeight = nHeight;
+	m_nWidth = nWidth;
+	m_nParam1 = 0;
+	m_nParam2 = 0;
+	m_nVal1 = 0;
+	m_nVal2 = 0;
+	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
+	
+	// Now create the fibroblats.	
+	CreateFibroblasts();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 Candidate::~Candidate()
 {
 	DestroyMat(m_pFibroblastMat);

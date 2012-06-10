@@ -11,17 +11,20 @@ class Ga
 {
 public:
 	Ga();	
-	void RunGa();	
+	void RunGa();
+	void Test();
 	
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 private:
 	void InitGa();
+	bool ReadTargetMeasurements();
 	void CreateTargetMeasurements();
 	void CreateJobs();
 	void ProcessJobs();
 	void ProcessResults();
+	void ProcessResults(Candidate* pCandidate);
 	int GetMate();
 	void CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild);
 	bool FindSimilarCandidate(int nIndex);

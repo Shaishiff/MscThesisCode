@@ -5,6 +5,10 @@
 #include "Mat.h"
 #include "Log.h"
 
+#include <iostream>
+#include <fstream>
+using namespace std;
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -25,8 +29,16 @@ int Ga::nNumberOfMachines = 0;
 Ga::Ga()
 {
 	m_nCurIteration = 0;
-	m_pTargetMeasurement1 = new double[Nw];
-	m_pTargetMeasurement2 = new double[Nh];
+	m_pTargetMeasurement1 = new double[Nw_with_border];
+	for(int iW = 0; iW < Nw_with_border; ++iW)
+	{
+		m_pTargetMeasurement1[iW] = 0.0;
+	}
+	m_pTargetMeasurement2 = new double[Nh_with_border];
+	for(int iH = 0; iH < Nh_with_border; ++iH)
+	{
+		m_pTargetMeasurement2[iH] = 0.0;
+	}
 	MinCost = NULL;
 	Rank = NULL;
 }
@@ -91,48 +103,54 @@ bool ReadIntoArray(ifstream& myfile, double** arr)
 	return false;
 }
 
-void Ga::ReadTargetMeasurements()
-{
-	//double* m_pTargetMeasurement1 = new double[Nw];
-	//double* m_pTargetMeasurement2 = new double[Nh];
+bool Ga::ReadTargetMeasurements()
+{	
 	double** arr = CreateMat();
     ifstream myfile;
 
+	// Reading the first protocol measurements.
 	myfile.open("TargetFibroblastMatResults1.txt");
 	if(!myfile.is_open()) //Always test the file open.
     {        
 		DestroyMat(arr);
-        return;
+        return false;
     }
     if(!ReadIntoArray(myfile, arr))
 	{
 		DestroyMat(arr);
-        return;
+        return false;
 	}
-	for (int iW = 1; iW < Nw+1; ++iW)
-	{
-		m_pTargetMeasurement1[iW-1] = arr[Nh][iW];
+	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults1.txt");
+	for (int iW = 1; iW <= Nw; ++iW)
+	{		
+		m_pTargetMeasurement1[iW] = arr[Nh][iW];
+		LOG2("Reading target measurements Prot1, %d: %.3f", iW, m_pTargetMeasurement1[iW]);
 	}
 	myfile.close();
 
+	// Reading the second protocol measurements.
 	myfile.open("TargetFibroblastMatResults2.txt");
-    if(!myfile.is_open()) //Always test the file open.
+    if(!myfile.is_open())
     {        
 		DestroyMat(arr);
-        return;
+        return false;
     }
     if(!ReadIntoArray(myfile, arr))
 	{
 		DestroyMat(arr);
-        return;
+        return false;
 	}
-	for (int iH = 1; iH < Nh+1; ++iH)
-	{
-		m_pTargetMeasurement2[iH-1] = arr[iH][Nw];
+	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults2.txt");
+	for (int iH = 1; iH <= Nh; ++iH)
+	{		
+		m_pTargetMeasurement2[iH] = arr[iH][Nw];
+		LOG2("Reading target measurements Prot2, %d: %.3f", iH, m_pTargetMeasurement2[iH]);
 	}
 	myfile.close();
 
 	DestroyMat(arr);
+	
+	return true;
 }
 
 void Ga::CreateTargetMeasurements()
@@ -161,11 +179,11 @@ void Ga::CreateTargetMeasurements()
 	// Save the measurements.
 	for (int iW = 1; iW < Nw+1; ++iW)
 	{
-		m_pTargetMeasurement1[iW-1] = pCandidate->m_pResult1[Nh][iW];
+		m_pTargetMeasurement1[iW] = pCandidate->m_pResult1[Nh][iW];
 	}
 	for (int iH = 1; iH < Nh+1; ++iH)
 	{
-		m_pTargetMeasurement2[iH-1] = pCandidate->m_pResult2[iH][Nw];
+		m_pTargetMeasurement2[iH] = pCandidate->m_pResult2[iH][Nw];
 	}
 	
 	delete pCandidate;
@@ -257,33 +275,46 @@ void Ga::ProcessJobs()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+#define SAMPLING_INTERVALS	2
+
+void Ga::ProcessResults(Candidate* pCandidate)
+{
+	// Calculate the cost for this candidate.
+	pCandidate->m_cost = 0;
+	
+	// Calculate cost from result 1.
+	for (int iW = 1; iW < Nw+1; iW+=SAMPLING_INTERVALS)
+	{
+		int nCandidateResult = (int)ceil(pCandidate->m_pResult1[Nh][iW] * 1000);
+		int nTargetResult = (int)ceil(m_pTargetMeasurement1[iW] * 1000);
+		int nCost = std::abs(nCandidateResult - nTargetResult);
+		pCandidate->m_cost += (unsigned long int)nCost;
+		LOG3("ProcessResults, nCandidateResult: %d, nTargetResult: %d, nCost: %d", nCandidateResult, nTargetResult, nCost);
+	}
+
+	// Calculate cost from result 2.
+	for (int iH = 1; iH < Nh+1; iH+=SAMPLING_INTERVALS)
+	{
+		int nCandidateResult = (int)ceil(pCandidate->m_pResult2[iH][Nw] * 1000);
+		int nTargetResult = (int)ceil(m_pTargetMeasurement2[iH] * 1000);
+		int nCost = std::abs(nCandidateResult - nTargetResult);
+		pCandidate->m_cost += (unsigned long int)nCost;
+		LOG3("ProcessResults, nCandidateResult: %d, nTargetResult: %d, nCost: %d", nCandidateResult, nTargetResult, nCost);
+	}
+	
+	LOG3("ProcessResults, current cost for candidate #%d, %s: %u", pCandidate->m_nIndex, pCandidate->GetFullName(), pCandidate->m_cost);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 void Ga::ProcessResults()
 {
 	LOG("ProcessResults started");
 	for (int nPopIndex = 0; nPopIndex < Npop; ++nPopIndex)
 	{
 		Candidate* pCandidate = Population[nPopIndex];
-				
-		// Calculate the cost for this candidate.
-		pCandidate->m_cost = 0;
-		
-		// Calculate cost from result 1.
-		for (int iW = 1; iW < Nw+1; ++iW)
-		{
-			int nCandidateResult = (int)ceil(pCandidate->m_pResult1[Nh][iW]);
-			int nTargetResult = (int)ceil(m_pTargetMeasurement1[iW]);
-			pCandidate->m_cost += (unsigned long int)std::abs(nCandidateResult - nTargetResult);
-		}
-
-		// Calculate cost from result 2.
-		for (int iH = 1; iH < Nh+1; ++iH)
-		{
-			int nCandidateResult = (int)ceil(pCandidate->m_pResult2[iH][Nw]);
-			int nTargetResult = (int)ceil(m_pTargetMeasurement2[iH]);
-			pCandidate->m_cost += (unsigned long int)std::abs(nCandidateResult - nTargetResult);
-		}
-		
-		LOG3("ProcessResults, current cost for candidate #%d, %s: %d", pCandidate->m_nIndex, pCandidate->GetFullName(), pCandidate->m_cost);
+		ProcessResults(pCandidate);
 	}
 }	
 	
@@ -416,7 +447,12 @@ void Ga::RunGa()
 	InitGa();
 
 	// Create and measure our target mat.
-	CreateTargetMeasurements();
+	//CreateTargetMeasurements();
+	if(!ReadTargetMeasurements())
+	{
+		LOG("Failed to read the target measurements. Aborting.");
+		return;
+	}
 	
 	// Create min cost file
 	char minCostFileName[1024] = {0};
@@ -483,7 +519,7 @@ void Ga::RunGa()
 		{	
 			if(iOffspring == 0)
 			{
-				LOG("The first offspring will be a (mutated) clone of the best candidate");				
+				LOG("The first offspring will be a (mutated) clone of the best candidate");
 				CreateChild(Population[0], Population[0], Population[NsurvivingPopulation]);
 				++iOffspring;
 			}
@@ -653,6 +689,48 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+void Ga::Test()
+{
+	LOG("Test started");
+	
+	ReadTargetMeasurements();
+	
+	Candidate* pCandidate = new Candidate(50, 40, 15, 25);
+	//Candidate* pCandidate = new Candidate(0); // Random.
+	LOG1("Testing cost with candidate: %s", pCandidate->GetFullName());
+	S1Protocol s1;
+	S2Protocol s2;
+	CFkModel* pModel = new CFkModel();				
+	clock_t startingTime;
+	clock_t endingTime;
+	double runningTime = 0.0;
+	
+	LOG("Executing 1st protocol");
+	startingTime = clock();
+	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult1, s1);
+	SaveMatToFile(pCandidate->m_pResult1, "TestMatResults1.txt");
+	endingTime = clock();
+	runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);	
+	LOG1("Finished executing 1st protocol after %.3f seconds", runningTime);
+		
+	LOG("Executing 2nd protocol");
+	startingTime = clock();
+	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult2, s2);	
+	SaveMatToFile(pCandidate->m_pResult2, "TestMatResults2.txt");
+	endingTime = clock();
+	runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);	
+	LOG1("Finished executing 2nd protocol after %.3f seconds", runningTime);
+	
+	// Compare results to the target.
+	ProcessResults(pCandidate);
+	
+	delete pModel;
+	delete pCandidate;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 int main(int argc, char *argv[])
 {
 	int nProvided = -1;
@@ -676,12 +754,13 @@ int main(int argc, char *argv[])
 	
 	// Start the appropriate process: master/slave
 	if(nCurProcess == MPI_MASTER)
-	{		
-		StartMainProcess(sMachineName);		
+	{	
+		ga.Test();
+		//StartMainProcess(sMachineName);		
 	}
 	else
 	{		
-		StartSlaveProcess(nCurProcess, sMachineName);
+		//StartSlaveProcess(nCurProcess, sMachineName);
 	}
 	
 	LOG("Ending process");
