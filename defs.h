@@ -37,6 +37,7 @@ const int MPI_RESULT_TAG = 4000;
 #define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
 #define Nmates (Npop - NsurvivingPopulation)
+#define SAMPLING_INTERVALS	2
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Physiological consts
@@ -53,9 +54,9 @@ const double sigma = 13.865; // 0.3; 3.0*10^-4; mS/cm
 const double t_fast  = 0.249; // tau_fast
 const double tf_opn1 =  40; // tau_f_open_1
 const double tf_opn2 =  82.5; // tau_f_open_2
-const double tf_cls =  5.75; // tau_f_close
+const double tf_cls =  5.75*1.5; // tau_f_close
 const double t_slow =226.9; // tau_slow
-const double ts_opn =  100; // tau_s_open
+const double ts_opn =  100*0.5; // tau_s_open
 const double ts_cls =  300; // tau_s_close
 const double t_ug1 = 64.7; // tau_ung_1
 const double t_ug2 = 222.9; // tau_ung_2

@@ -39,15 +39,9 @@ Ga::Ga()
 	{
 		m_pTargetMeasurement2[iH] = 0.0;
 	}
-	MinCost = NULL;
-	Rank = NULL;
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-void Ga::InitGa()
-{		
+	
+	m_pTargetFibroblastMat = CreateMat();
+	
 	for(int iPop = 0; iPop < Npop; ++iPop)
 	{		
 		Candidate* pCandidate = new Candidate(iPop);
@@ -80,6 +74,26 @@ void Ga::InitGa()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+Ga::~Ga()
+{
+	delete m_pTargetMeasurement1;
+	m_pTargetMeasurement1 = NULL;
+	
+	delete m_pTargetMeasurement2;
+	m_pTargetMeasurement2 = NULL;
+	
+	DestroyMat(m_pTargetFibroblastMat);
+	
+	delete MinCost;
+	MinCost = NULL;
+	
+	delete Rank;
+	Rank = NULL;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 bool ReadIntoArray(ifstream& myfile, double** arr)
 {
 	int iH = 1;
@@ -104,13 +118,26 @@ bool ReadIntoArray(ifstream& myfile, double** arr)
 }
 
 bool Ga::ReadTargetMeasurements()
-{	
-	double** arr = CreateMat();
+{		
     ifstream myfile;
 
+	// Reading the target fibroblast mat.
+	myfile.open("TargetFibroblastMat.txt");
+	if(!myfile.is_open())
+    {        
+        return false;
+    }
+    if(!ReadIntoArray(myfile, m_pTargetFibroblastMat))
+	{
+        return false;
+	}
+	
+	// Use this mat to read the rise time and then measure on the edges.
+	double** arr = CreateMat();
+	
 	// Reading the first protocol measurements.
 	myfile.open("TargetFibroblastMatResults1.txt");
-	if(!myfile.is_open()) //Always test the file open.
+	if(!myfile.is_open())
     {        
 		DestroyMat(arr);
         return false;
@@ -275,15 +302,13 @@ void Ga::ProcessJobs()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define SAMPLING_INTERVALS	2
-
 void Ga::ProcessResults(Candidate* pCandidate)
 {
 	// Calculate the cost for this candidate.
 	pCandidate->m_cost = 0;
 	
 	// Calculate cost from result 1.
-	for (int iW = 1; iW < Nw+1; iW+=SAMPLING_INTERVALS)
+	for (int iW = 1; iW < Nw+1; iW += SAMPLING_INTERVALS)
 	{
 		int nCandidateResult = (int)ceil(pCandidate->m_pResult1[Nh][iW] * 1000);
 		int nTargetResult = (int)ceil(m_pTargetMeasurement1[iW] * 1000);
@@ -293,7 +318,7 @@ void Ga::ProcessResults(Candidate* pCandidate)
 	}
 
 	// Calculate cost from result 2.
-	for (int iH = 1; iH < Nh+1; iH+=SAMPLING_INTERVALS)
+	for (int iH = 1; iH < Nh+1; iH += SAMPLING_INTERVALS)
 	{
 		int nCandidateResult = (int)ceil(pCandidate->m_pResult2[iH][Nw] * 1000);
 		int nTargetResult = (int)ceil(m_pTargetMeasurement2[iH] * 1000);
@@ -441,10 +466,30 @@ void Ga::CreateMutations()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+int Ga::CalculateError(double** pBestMatch)
+{
+	int nError = 0;
+	for(int iH = 1; iH < Nh+1; ++iH)
+	{
+		for(int iW = 1; iW < Nw+1; ++iW)
+		{
+			int nTarget = (int)ceil(m_pTargetFibroblastMat[iH][iW]);
+			int nMatch = (int)ceil(pBestMatch[iH][iW]);
+			if((nTarget == 0) != (nMatch == 0))
+			{
+				nError++;
+			}
+		}
+	}
+	return nError;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 void Ga::RunGa()
 {
 	LOG("Init GA...");
-	InitGa();
 
 	// Create and measure our target mat.
 	//CreateTargetMeasurements();
@@ -460,7 +505,7 @@ void Ga::RunGa()
 	FILE* pMinCostFile = fopen(minCostFileName, "w");
 	if(pMinCostFile != NULL)
 	{
-		fprintf(pMinCostFile, "Iteration | MinCost | Mat\n");
+		fprintf(pMinCostFile, "Iteration | MinCost | Mat | Error\n");
 		fclose(pMinCostFile);
 	}
 	
@@ -546,10 +591,12 @@ void Ga::RunGa()
 		MinCost[m_nCurIteration] = Population[0]->m_cost;
 		LOG1("Avg Cost: %.3f", dAvgCost);
 		LOG2("Min Cost: %d for %s", MinCost[m_nCurIteration], Population[0]->GetFullName());
+		int nError = CalculateError(Population[0]->m_pFibroblastMat);
+		LOG1("The error for best match is: %d", nError);
 		pMinCostFile = fopen(minCostFileName, "a");
 		if(pMinCostFile != NULL)
 		{
-			fprintf(pMinCostFile, "%d | %d | %s\n", m_nCurIteration, MinCost[m_nCurIteration], Population[0]->GetFullName());
+			fprintf(pMinCostFile, "%d | %d | %s | %d\n", m_nCurIteration, MinCost[m_nCurIteration], Population[0]->GetFullName(), nError);
 			fclose(pMinCostFile);
 		}
 		if(MinCost[m_nCurIteration] == 0)
@@ -589,7 +636,12 @@ void Ga::RunGa()
 		LOG1("Iteration end: %d", iterationEndingTime);
 		LOG1("Iteration duration: %.3f seconds", iterationRunningTime);
 		LOG("------------------");
-	}	
+	}
+	
+	// Finished executing the GA.
+	LOG2("The best match found is: %s, with cost: ", Population[0]->GetFullName(), MinCost[m_nCurIteration]);
+	int nError = CalculateError(Population[0]->m_pFibroblastMat);
+	LOG1("The error for this match is: %d", nError);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -724,6 +776,10 @@ void Ga::Test()
 	// Compare results to the target.
 	ProcessResults(pCandidate);
 	
+	SaveMatToFile(pCandidate->m_pFibroblastMat, "TestMat.txt");
+	int nError = CalculateError(pCandidate->m_pFibroblastMat);
+	LOG1("The error for this match is: %d", nError);
+	
 	delete pModel;
 	delete pCandidate;
 }
@@ -755,12 +811,12 @@ int main(int argc, char *argv[])
 	// Start the appropriate process: master/slave
 	if(nCurProcess == MPI_MASTER)
 	{	
-		ga.Test();
-		//StartMainProcess(sMachineName);		
+		// ga.Test();
+		StartMainProcess(sMachineName);		
 	}
 	else
 	{		
-		//StartSlaveProcess(nCurProcess, sMachineName);
+		StartSlaveProcess(nCurProcess, sMachineName);
 	}
 	
 	LOG("Ending process");

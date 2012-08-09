@@ -10,7 +10,8 @@
 class Ga
 {
 public:
-	Ga();	
+	Ga();
+	~Ga();
 	void RunGa();
 	void Test();
 	
@@ -18,7 +19,6 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////////
 
 private:
-	void InitGa();
 	bool ReadTargetMeasurements();
 	void CreateTargetMeasurements();
 	void CreateJobs();
@@ -29,6 +29,7 @@ private:
 	void CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild);
 	bool FindSimilarCandidate(int nIndex);
 	void CreateMutations();
+	int CalculateError(double** pBestMatch);
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -40,6 +41,7 @@ private:
 	int m_nCurIteration;
 	double* m_pTargetMeasurement1;
 	double* m_pTargetMeasurement2;
+	double** m_pTargetFibroblastMat;
 	unsigned long int* MinCost;
 	double* Rank;
 	vector<Candidate*> Population;

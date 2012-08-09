@@ -210,7 +210,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 					}
 					else // v > V_u
 					{
-						t_ung =t_ug2; // tau_ungated
+						t_ung = t_ug2; // tau_ungated
 						J_ung = (1 / t_ung) * 1; // J_ungated
 					}
 
@@ -301,7 +301,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 
 		if(bStopSim)
 		{
-			break;
+			//break;
 		}		
 	}	
 }
