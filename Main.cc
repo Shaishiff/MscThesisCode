@@ -21,7 +21,7 @@ const int Save_dH = 1; // 5; // height resolution of saved elements (Save_H*Save
 const double save_period = 1.0; // milliseconds
 const double send_period = 1.0; // milliseconds - For collecting the data from Workers to MASTER for saving - Make equal to save_period !!!
 const double time_step = (double) dt; // milliseconds - Defind in const.h that is included in Nhumatr.h
-const double max_time = 400.0; // milliseconds - Total time of simulation
+const double max_time = 500.0; // milliseconds - Total time of simulation
 double time_to_save = 0.0; // Initialization of saving
 double time_to_send = 0.0; // Initialization of sending
 double sim_time = 0.0; // Used locally/independently in MASTER and Workers
@@ -63,7 +63,7 @@ const double Vrm_fibro = (double) -15.9; // mV Kamkin A. Experimental Physiology
 //const double S1_amp = -142.4;//3.0752 -100.0;//-100*Cm; // pA
 const double S1_amp = -100.0;//3.0752 -100.0;//-100*Cm; // pA
 const double S1_total_time = 5.0; // 50.0 milliseconds
-const double S1_begin = 2.0; // milliseconds
+const double S1_begin = 50.0; // milliseconds
 
 /*
 const double S2_amp = 0.0;//-100.0;//-3000.0;//-3000.0; //-80.0*Cm; // pA
