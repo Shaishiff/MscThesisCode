@@ -8,20 +8,25 @@
 class Candidate
 {
 public:
-	Candidate(int nIndex);
-	Candidate(int nCenterH, int nCenterW, int nHeight, int nWidth);
+	Candidate(int nIndex, int nHStart, int nWStart, int nHEnd, int nWEnd);
 	virtual ~Candidate();	
-	void CreateFibroblasts();
-	void Mutate();
-	void UnMutate();
-	char* GetFullName() 
-	{ 
-		sprintf(m_cCandidateFullName,"(%d,%d) %dX%d", m_nCenterH, m_nCenterW, m_nHeight, m_nWidth);
-		return m_cCandidateFullName; 
-	}
+	/*
+	int GetHStart() const {return m_nHStart;}
+	int GetWStart() const {return m_nWStart;}
+	int GetHEnd() const {return m_nHEnd;}
+	int GetWEnd() const {return m_nWEnd;}
+	*/
 	
+	//void Mutate();
+	//void UnMutate();	
+	//double** GetFibroblastMat() {return m_pFibroblastMat;}
+	
+	char* GetFullName();
+
 private:
 	void ClearMat();
+	void CreateFibroblastMat();
+	//void Mutate(int nParam, int nVal);
 
 public:	
 	double** m_pFibroblastMat;
@@ -29,17 +34,18 @@ public:
 	double** m_pResult2;		
 	int m_nIndex;
 	unsigned long int m_cost;
-	int m_nCenterH;
-	int m_nCenterW;
-	int m_nHeight;
-	int m_nWidth;
+	int m_nHStart;
+	int m_nWStart;
+	int m_nHEnd;
+	int m_nWEnd;
 	
 	// Mutation.
+	/*
 	int m_nParam1;
 	int m_nParam2;
 	int m_nVal1;
 	int m_nVal2;
-	
+	*/
 private:
 	char m_cCandidateFullName[256];
 };

@@ -21,7 +21,9 @@
 #define LOG2(log, var1, var2)			sprintf(strLog, log, var1, var2); \
 										PRINTLOG
 #define LOG3(log, var1, var2, var3)		sprintf(strLog, log, var1, var2, var3); \
-										PRINTLOG
+										PRINTLOG										
+#define LOG4(log, var1, var2, var3, var4)	sprintf(strLog, log, var1, var2, var3, var4); \
+											PRINTLOG
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////

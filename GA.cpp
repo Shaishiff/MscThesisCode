@@ -44,8 +44,7 @@ Ga::Ga()
 	
 	for(int iPop = 0; iPop < Npop; ++iPop)
 	{		
-		Candidate* pCandidate = new Candidate(iPop);
-		Population.push_back(pCandidate);
+		Population.push_back(CreateRandomCandidate(iPop));
 	}
 
 	MinCost = new unsigned long int[MaxIterations];
@@ -131,6 +130,7 @@ bool Ga::ReadTargetMeasurements()
 	{
         return false;
 	}
+	myfile.close();
 	
 	// Use this mat to read the rise time and then measure on the edges.
 	double** arr = CreateMat();
@@ -150,7 +150,7 @@ bool Ga::ReadTargetMeasurements()
 	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults1.txt");
 	for (int iW = 1; iW <= Nw; ++iW)
 	{		
-		m_pTargetMeasurement1[iW] = arr[Nh][iW];
+		m_pTargetMeasurement1[iW] = arr[Nh-10][iW];
 		LOG2("Reading target measurements Prot1, %d: %.3f", iW, m_pTargetMeasurement1[iW]);
 	}
 	myfile.close();
@@ -170,7 +170,7 @@ bool Ga::ReadTargetMeasurements()
 	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults2.txt");
 	for (int iH = 1; iH <= Nh; ++iH)
 	{		
-		m_pTargetMeasurement2[iH] = arr[iH][Nw];
+		m_pTargetMeasurement2[iH] = arr[iH][Nw-10];
 		LOG2("Reading target measurements Prot2, %d: %.3f", iH, m_pTargetMeasurement2[iH]);
 	}
 	myfile.close();
@@ -179,7 +179,7 @@ bool Ga::ReadTargetMeasurements()
 	
 	return true;
 }
-
+/*
 void Ga::CreateTargetMeasurements()
 {
 	LOG("CreateTargetMeasurements");
@@ -218,7 +218,7 @@ void Ga::CreateTargetMeasurements()
 	delete pModel;
 	pModel = NULL;
 }
-
+*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -310,21 +310,21 @@ void Ga::ProcessResults(Candidate* pCandidate)
 	// Calculate cost from result 1.
 	for (int iW = 1; iW < Nw+1; iW += SAMPLING_INTERVALS)
 	{
-		int nCandidateResult = (int)ceil(pCandidate->m_pResult1[Nh][iW] * 1000);
+		int nCandidateResult = (int)ceil(pCandidate->m_pResult1[Nh-10][iW] * 1000);
 		int nTargetResult = (int)ceil(m_pTargetMeasurement1[iW] * 1000);
 		int nCost = std::abs(nCandidateResult - nTargetResult);
 		pCandidate->m_cost += (unsigned long int)nCost;
-		LOG3("ProcessResults, nCandidateResult: %d, nTargetResult: %d, nCost: %d", nCandidateResult, nTargetResult, nCost);
+		LOG4("ProcessResults, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
 	}
 
 	// Calculate cost from result 2.
 	for (int iH = 1; iH < Nh+1; iH += SAMPLING_INTERVALS)
 	{
-		int nCandidateResult = (int)ceil(pCandidate->m_pResult2[iH][Nw] * 1000);
+		int nCandidateResult = (int)ceil(pCandidate->m_pResult2[iH][Nw-10] * 1000);
 		int nTargetResult = (int)ceil(m_pTargetMeasurement2[iH] * 1000);
 		int nCost = std::abs(nCandidateResult - nTargetResult);
 		pCandidate->m_cost += (unsigned long int)nCost;
-		LOG3("ProcessResults, nCandidateResult: %d, nTargetResult: %d, nCost: %d", nCandidateResult, nTargetResult, nCost);
+		LOG4("ProcessResults, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
 	}
 	
 	LOG3("ProcessResults, current cost for candidate #%d, %s: %u", pCandidate->m_nIndex, pCandidate->GetFullName(), pCandidate->m_cost);
@@ -346,7 +346,7 @@ void Ga::ProcessResults()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-int Ga::GetMate()
+int Ga::ChooseRandomParent()
 {
 	double parentRand = (double)rand()/(double)RAND_MAX;        
     for (int iRank = 0 ; iRank < (NsurvivingPopulation-1); ++iRank)
@@ -362,63 +362,40 @@ int Ga::GetMate()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void Ga::CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild)
+Candidate* Ga::CreateRandomCandidate(int nIndex)
 {
-	if((pChild == pParent1) || (pChild == pParent2))
-	{
-		throw;
-	}
-		
-	LOG2("Parent1, Candidate #%d: %s", pParent1->m_nIndex, pParent1->GetFullName());	
-	LOG2("Parent2, Candidate #%d: %s", pParent2->m_nIndex, pParent2->GetFullName());
-
-	pChild->m_nCenterH = pParent1->m_nCenterH;
-	pChild->m_nCenterW = pParent1->m_nCenterW;
-	pChild->m_nHeight = pParent1->m_nHeight;
-	pChild->m_nWidth = pParent1->m_nWidth;
-	
-	int nCrossPoint1 = rand()%4;
-	switch(nCrossPoint1)
-	{
-		case 0:
-			pChild->m_nCenterH = pParent2->m_nCenterH;	
-			break;
-		case 1:
-			pChild->m_nCenterW = pParent2->m_nCenterW;
-			break;
-		case 2:
-			pChild->m_nHeight = pParent2->m_nHeight;			
-			break;
-		case 3:
-			pChild->m_nWidth = pParent2->m_nWidth;
-			break;
-	}
-
-	int nCrossPoint2 = rand()%4;
-	switch(nCrossPoint2)
-	{
-		case 0:
-			pChild->m_nCenterH = pParent2->m_nCenterH;	
-			break;
-		case 1:
-			pChild->m_nCenterW = pParent2->m_nCenterW;
-			break;
-		case 2:
-			pChild->m_nHeight = pParent2->m_nHeight;			
-			break;
-		case 3:
-			pChild->m_nWidth = pParent2->m_nWidth;
-			break;
-	}
-
-	pChild->CreateFibroblasts();
-	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());	
-	LOG("-");
+	int nHStart = rand()%(Max_h_Fibroblast - Min_h_Fibroblast + 1) + Min_h_Fibroblast;
+	int nWStart = rand()%(Max_w_Fibroblast - Min_w_Fibroblast + 1) + Min_w_Fibroblast;
+	int nHEnd = rand()%(Max_h_Fibroblast - Min_h_Fibroblast + 1) + Min_h_Fibroblast;
+	int nWEnd = rand()%(Max_w_Fibroblast - Min_w_Fibroblast + 1) + Min_w_Fibroblast;
+	return new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+Candidate* Ga::CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex)
+{
+	LOG2("Parent1, Candidate #%d: %s", pParent1->m_nIndex, pParent1->GetFullName());	
+	LOG2("Parent2, Candidate #%d: %s", pParent2->m_nIndex, pParent2->GetFullName());	
+	int nHStart = 0;
+	int nWStart = 0;
+	int nHEnd = 0;
+	int nWEnd = 0;
+	nHStart = Mutate((rand()%2 == 1) ? pParent1->m_nHStart : pParent2->m_nHStart);
+	nWStart = Mutate((rand()%2 == 1) ? pParent1->m_nWStart : pParent2->m_nWStart);
+	nHEnd = Mutate((rand()%2 == 1) ? pParent1->m_nHEnd : pParent2->m_nHEnd);
+	nWEnd = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd : pParent2->m_nWEnd);	
+	Candidate* pChild = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
+	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());	
+	LOG("-");
+	return pChild;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+/*
 bool Ga::FindSimilarCandidate(int nIndex)
 {
 	for(int iPop = 0; iPop < Npop; ++iPop)
@@ -437,10 +414,15 @@ bool Ga::FindSimilarCandidate(int nIndex)
 	}
 	return false;
 }
-
+*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+int Ga::Mutate(int nInValue)
+{
+	return (nInValue + (rand()%9) - 4);
+}
+/*
 void Ga::CreateMutations()
 {
 	LOG("Starting mutations...");
@@ -448,6 +430,7 @@ void Ga::CreateMutations()
 	for(int iPop = 1; iPop < Npop; ++iPop)
 	{
 		LOG2("Candiate #%d before mutation: %s", iPop, Population[iPop]->GetFullName());
+		
 		Population[iPop]->Mutate();
 		while(FindSimilarCandidate(iPop))
 		{
@@ -462,7 +445,7 @@ void Ga::CreateMutations()
 		LOG("-");
 	}
 }
-
+*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -487,12 +470,36 @@ int Ga::CalculateError(double** pBestMatch)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+double Ga::CalculateTargetCoverage(double** pBestMatch)
+{
+	int nTargetSize = 0;
+	int nCoverage = 0;
+	for(int iH = 1; iH < Nh+1; ++iH)
+	{
+		for(int iW = 1; iW < Nw+1; ++iW)
+		{
+			int nTarget = (int)ceil(m_pTargetFibroblastMat[iH][iW]);
+			int nMatch = (int)ceil(pBestMatch[iH][iW]);
+			if(nTarget != 0)
+			{
+				nTargetSize++;
+				if(nMatch != 0)
+				{
+					nCoverage++;
+				}				
+			}
+		}
+	}
+	if(nCoverage == 0) return 0.0;
+	return 100.0*(nCoverage/nTargetSize);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 void Ga::RunGa()
 {
 	LOG("Init GA...");
-
-	// Create and measure our target mat.
-	//CreateTargetMeasurements();
 	if(!ReadTargetMeasurements())
 	{
 		LOG("Failed to read the target measurements. Aborting.");
@@ -505,7 +512,7 @@ void Ga::RunGa()
 	FILE* pMinCostFile = fopen(minCostFileName, "w");
 	if(pMinCostFile != NULL)
 	{
-		fprintf(pMinCostFile, "Iteration | MinCost | Mat | Error\n");
+		fprintf(pMinCostFile, "Iteration | MinCost | Mat | Error | Coverage\n");
 		fclose(pMinCostFile);
 	}
 	
@@ -517,12 +524,23 @@ void Ga::RunGa()
 		LOG("------------------");
 		clock_t iterationStartingTime = clock();
 	
-		// Determine the cost function for each member of the population.
+		LOG("Candidates for this iteration:");
+		for(int iPop = 0; iPop < Npop; ++iPop)
+		{			
+			LOG2("Candidate #%d, %s", Population[iPop]->m_nIndex, Population[iPop]->GetFullName());
+		}
+	
+		// Process candidates - Execute the simulation with the backward model
+		// for each of candidates.
 		CreateJobs();
 		ProcessJobs();
+		
+		// Go over the results of the simulations and determine 
+		// the cost of each of candidates.
 		ProcessResults();
 
-		// Sort according to the cost and then mate according to the rank.
+		// Sort candidates according to the cost.
+		LOG("--");
 		LOG("Sorting the population...");
 		std::sort(Population.begin(), Population.end(), CandidateCompare);
 		for(int iPop = 0; iPop < Npop; ++iPop)
@@ -554,51 +572,21 @@ void Ga::RunGa()
 		}
 		double dAvgCost = nTotalCost/Npop;
 
-		// Create the next generation.		
-		LOG("--");
-		LOG("Creating the next generation...");
-		LOG1("Need to create %d offspring in total", Nmates);
-		LOG("--");
-		int iOffspring = 0;
-		while(iOffspring < Nmates)
-		{	
-			if(iOffspring == 0)
-			{
-				LOG("The first offspring will be a (mutated) clone of the best candidate");
-				CreateChild(Population[0], Population[0], Population[NsurvivingPopulation]);
-				++iOffspring;
-			}
-			else
-			{
-				int nFirstParent = GetMate();
-				int nSecondParent = GetMate();
-				if(nFirstParent != nSecondParent)
-				{
-					LOG1("Creating offspring %d", iOffspring+1);
-					Candidate* Parent1 = Population[nFirstParent];
-					Candidate* Parent2 = Population[nSecondParent];
-				
-					// Choose a cross over point.
-					// Add the new offspirng to the population.
-					CreateChild(Parent1, Parent2, Population[NsurvivingPopulation + iOffspring]);
-					++iOffspring;
-				}
-			}
-		}
-    		         
-		CreateMutations();		
-		
 		MinCost[m_nCurIteration] = Population[0]->m_cost;
 		LOG1("Avg Cost: %.3f", dAvgCost);
 		LOG2("Min Cost: %d for %s", MinCost[m_nCurIteration], Population[0]->GetFullName());
 		int nError = CalculateError(Population[0]->m_pFibroblastMat);
-		LOG1("The error for best match is: %d", nError);
+		LOG1("The (geomatric) error for the best match is: %d", nError);
+		double dCoverage = CalculateTargetCoverage(Population[0]->m_pFibroblastMat);
+		LOG1("The coverage for the best match is: %.3f", dCoverage);
 		pMinCostFile = fopen(minCostFileName, "a");
 		if(pMinCostFile != NULL)
 		{
-			fprintf(pMinCostFile, "%d | %d | %s | %d\n", m_nCurIteration, MinCost[m_nCurIteration], Population[0]->GetFullName(), nError);
+			fprintf(pMinCostFile, "%d | %d | %s | %d | %.3f\n", m_nCurIteration, MinCost[m_nCurIteration], Population[0]->GetFullName(), nError, dCoverage);
 			fclose(pMinCostFile);
 		}
+		
+		// Check break conditions.
 		if(MinCost[m_nCurIteration] == 0)
 		{
 			LOG("Reached zero cost. Breaking the iterations !");
@@ -608,15 +596,7 @@ void Ga::RunGa()
 		{
 			if(MinCost[m_nCurIteration] == MinCost[m_nCurIteration-1])
 			{
-				nLastMinCostCounter++;
-				/*
-				if(nLastMinCostCounter >= 5)
-				{
-					LOG("We're starting to reach a dead end in the costs. Creating an additional clone of the best candidate !");					
-					CreateChild(Population[0], Population[0], Population[Npop-1]);
-					// Need to mutate and create mat...
-				}
-				*/
+				nLastMinCostCounter++;				
 				if(nLastMinCostCounter == 10)
 				{
 					LOG("Reached a dead end in the costs. Breaking the iterations !");
@@ -635,6 +615,34 @@ void Ga::RunGa()
 		LOG1("Iteration start: %d", iterationStartingTime);
 		LOG1("Iteration end: %d", iterationEndingTime);
 		LOG1("Iteration duration: %.3f seconds", iterationRunningTime);
+				
+		// Create the next generation.
+		LOG("--");
+		LOG("Creating the next generation...");
+		LOG1("Need to create %d offsprings in total", Nmates);
+		LOG("--");
+		int iOffspring = 0;
+		while(iOffspring < Nmates)
+		{	
+			int nFirstParent = 0;
+			int nSecondParent = 0;
+			if(iOffspring != 0)
+			{
+				while(nFirstParent == nSecondParent)
+				{
+					nFirstParent = ChooseRandomParent();
+					nSecondParent = ChooseRandomParent();
+				}				
+			}
+			
+			int nNewCandidateIndex = NsurvivingPopulation + iOffspring;			
+			delete Population[nNewCandidateIndex];
+			LOG4("Creating offspring %d (candidate #%d) from parents %d and %d", iOffspring+1, nNewCandidateIndex, nFirstParent, nSecondParent);
+			Population[nNewCandidateIndex] = CreateChild(Population[nFirstParent], Population[nSecondParent], nNewCandidateIndex);
+			++iOffspring;
+		}
+    		         
+		//CreateMutations();
 		LOG("------------------");
 	}
 	
@@ -743,12 +751,14 @@ void StartSlaveProcess(int nProcess, char* sMachineName)
 
 void Ga::Test()
 {
-	LOG("Test started");
+	LOG("----------------------- Test started -----------------------");
 	
 	ReadTargetMeasurements();
 	
-	Candidate* pCandidate = new Candidate(50, 40, 15, 25);
-	//Candidate* pCandidate = new Candidate(0); // Random.
+	int nIndex = 0;
+	Candidate* pCandidate = new Candidate(nIndex, 50, 40, 64, 64);
+	//Candidate* pCandidate = new Candidate(0, 0, 0, 0); // No mat.
+	//pCandidate->CreateFibroblastMat();
 	LOG1("Testing cost with candidate: %s", pCandidate->GetFullName());
 	S1Protocol s1;
 	S2Protocol s2;
@@ -759,12 +769,12 @@ void Ga::Test()
 	
 	LOG("Executing 1st protocol");
 	startingTime = clock();
-	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult1, s1);
+	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult1, s1);//, "/a/home/cc/students/enginer/shaishif/Logs/Output");
 	SaveMatToFile(pCandidate->m_pResult1, "TestMatResults1.txt");
 	endingTime = clock();
 	runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);	
 	LOG1("Finished executing 1st protocol after %.3f seconds", runningTime);
-		
+	
 	LOG("Executing 2nd protocol");
 	startingTime = clock();
 	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult2, s2);	
@@ -778,7 +788,7 @@ void Ga::Test()
 	
 	SaveMatToFile(pCandidate->m_pFibroblastMat, "TestMat.txt");
 	int nError = CalculateError(pCandidate->m_pFibroblastMat);
-	LOG1("The error for this match is: %d", nError);
+	LOG1("The (geomatric) error for this match is: %d", nError);
 	
 	delete pModel;
 	delete pCandidate;
@@ -786,6 +796,8 @@ void Ga::Test()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
+
+//#define TESTING
 
 int main(int argc, char *argv[])
 {
@@ -811,15 +823,19 @@ int main(int argc, char *argv[])
 	// Start the appropriate process: master/slave
 	if(nCurProcess == MPI_MASTER)
 	{	
-		// ga.Test();
-		StartMainProcess(sMachineName);		
+	#ifdef TESTING
+		ga.Test();
+	}
+	#else
+		StartMainProcess(sMachineName);	
 	}
 	else
 	{		
 		StartSlaveProcess(nCurProcess, sMachineName);
 	}
-	
 	LOG("Ending process");
+	#endif // TESTING
+		
 	MPI_Finalize();
 		
 	return 0;

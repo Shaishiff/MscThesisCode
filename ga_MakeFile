@@ -13,7 +13,7 @@ exec: test
 	mkdir /a/home/cc/students/enginer/shaishif/Logs
 	mkdir /a/home/cc/students/enginer/shaishif/Logs/Extra
 	mkdir /a/home/cc/students/enginer/shaishif/Logs/Output
-	${mpiRun} -m ${mpd} --rsh=/usr/bin/ssh -n 30 /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe
+	${mpiRun} -m ${mpd} --rsh=/usr/bin/ssh -n 40 /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe
 
 test: Candidate.cpp FkModel.cpp GA.cpp
 	${mpiCC} Mat.cpp safeJobVector.cpp Candidate.cpp FkModel.cpp GA.cpp -g -o /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe ${OPT} ${INCL} ${LIBS}

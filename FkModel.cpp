@@ -114,7 +114,9 @@ void CFkModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 #define INVALID_RISE_TIME	1000.0
 
 void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams, char* outputFolder)
-{	
+{		
+	//printf("ExecuteModel\n");
+	
 	CleanupFkModel();
 	double t_ung = 0.0;
 	double J_ung = 0.0;
@@ -145,6 +147,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 	// Start the temporal loop.
 	for (int iT = 0; iT < Nt; ++iT)
 	{   		
+		//printf("ExecuteModel: %d\n", iT);
 		// Calc the time in ms and check if we need to use the S1 protocol.
 		double curTime = iT*dt;
 		bool bS1 = ((curTime >= protParams.m_BeginTime) && (curTime <= (protParams.m_BeginTime+protParams.m_TotalTime)));
@@ -187,7 +190,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 					}
 
 					double v = mat[iH][iW];
-					if((v > 0.3) && (outRiseTimeMat[iH][iW] == INVALID_RISE_TIME))
+					if((outRiseTimeMat[iH][iW] == INVALID_RISE_TIME) && (v > 0.3))
 					{
 						//if(Jstim == 0.0)
 						{							
@@ -278,18 +281,32 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 		f_mat = new_f_mat;
 		new_f_mat = temp;
 
+		//
+		//printf("protParams.m_hMeasureStart: %.3f\n", protParams.m_hMeasureStart);
+		//printf("protParams.m_hMeasureEnd: %.3f\n", protParams.m_hMeasureEnd);
+		//printf("protParams.m_wMeasureStart: %.3f\n", protParams.m_wMeasureStart);
+		//printf("protParams.m_wMeasureEnd: %.3f\n", protParams.m_wMeasureEnd);
+		//
+		
+		
 		bool bStopSim = true;
-		for (int iH = 1; iH < Nh+1; ++iH)
+		for (double curH = protParams.m_hMeasureStart; curH <= protParams.m_hMeasureEnd; curH += dH)
 		{
-			for (int iW = 1; iW < Nw+1; ++iW)
+			for (double curW = protParams.m_wMeasureStart; curW <= protParams.m_wMeasureEnd; curW += dW)
 			{            									
-				double curH = iH*dH;
-				double curW = iW*dW;
+				int iH = (int)ceil(curH/dH);
+				int iW = (int)ceil(curW/dW);
+				//double curH = iH*dH;
+				//double curW = iW*dW;
+				//printf("curW: %.3f, curH: %.3f\n", curW, curH);
+				/*
 				if(curH >= protParams.m_hMeasureStart &&
 				   curH <= protParams.m_hMeasureEnd &&
 				   curW >= protParams.m_wMeasureStart &&
 				   curW <= protParams.m_wMeasureEnd)
+				   */
 				{
+					//printf("Checking rise time at curW: %.3f, curH: %.3f\n", curW, curH);
 					if(outRiseTimeMat[iH][iW] == INVALID_RISE_TIME)
 					{
 						bStopSim = false;
@@ -301,7 +318,8 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 
 		if(bStopSim)
 		{
-			//break;
+			//printf("Breaking sim: %d\n", iT);
+			break;
 		}		
 	}	
 }

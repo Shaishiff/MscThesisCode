@@ -31,8 +31,8 @@ double sim_time = 0.0; // Used locally/independently in MASTER and Workers
 //const double Height = 10.0; //28.0; // mm
 const double dW = 0.1; // mm/node
 const double dH = 0.1; // mm/node
-const int W = 102; //210; // = Width/dW; // Width, x
-const int H = 102; //560; // = Height/dH; // Height, y
+const int W = 122; //210; // = Width/dW; // Width, x
+const int H = 122; //560; // = Height/dH; // Height, y
 
 // Reaction - Diffusion details
 // const double Cm = (double) 100.0e-12;
@@ -89,24 +89,24 @@ void Show_Vm_Char(int matrix_f[])
 		for (int j = 0; j < W; j += 4)
 		{
 			VC = Vm[i*H + j];
-			if (matrix_f[i*H + j]==2)	printf(" ");
+			if (matrix_f[i*H + j]==2)	printf("  ");
 			//else if (matrix_f[i*H+j]==1)	cout << ".";
-			else if (VC < -80.0) printf("8");
-			else if (VC < -70.0) printf("7");
-			else if (VC < -60.0) printf("6");
-			else if (VC < -50.0) printf("5");
-			else if (VC < -40.0) printf("4");
-			else if (VC < -30.0) printf("3");
-			else if (VC < -20.0) printf("2");
-			else if (VC < -10.0) printf("1");
-			else if (VC < 0.0) printf("0");
-			else if (VC < 5.0) printf("A");
-			else if (VC < 10.0) printf("B");
-			else if (VC < 15.0) printf("C");
-			else if (VC < 20.0) printf("D");
-			else if (VC < 25.0) printf("+");
-			else if (VC < 25.0) printf("*");
-			else printf("^");
+			else if (VC < -80.0) printf("88");
+			else if (VC < -70.0) printf("77");
+			else if (VC < -60.0) printf("66");
+			else if (VC < -50.0) printf("55");
+			else if (VC < -40.0) printf("44");
+			else if (VC < -30.0) printf("33");
+			else if (VC < -20.0) printf("22");
+			else if (VC < -10.0) printf("11");
+			else if (VC < 0.0) printf("00");
+			else if (VC < 5.0) printf("AA");
+			else if (VC < 10.0) printf("BB");
+			else if (VC < 15.0) printf("CC");
+			else if (VC < 20.0) printf("DD");
+			else if (VC < 25.0) printf("++");
+			else if (VC < 25.0) printf("**");
+			else printf("^^");
 			
 		}
 		printf("\n");
@@ -171,11 +171,19 @@ void SaveToFile(double sim_time)
 
 /*****************************************************************************/
 
-const int Protocol = 1; // Can be either 1 or 2
+const int Protocol = 2; // Can be either 1 or 2
+
 const int TargetCenterH = 50;
 const int TargetCenterW = 40;
 const int TargetHeight = 15;
 const int TargetWidth = 25;
+
+/*
+const int TargetCenterH = 0;
+const int TargetCenterW = 0;
+const int TargetHeight = 0;
+const int TargetWidth = 0;
+*/
 #define INVALID_RISE_TIME	1000.0
 
 int main(int argc, char *argv[])
@@ -350,7 +358,8 @@ int main(int argc, char *argv[])
 			{
 				if(Protocol == 1)
 				{	
-					for (int i = 0; i <= 2; i++)
+					//for (int i = 0; i <= 2; i++)
+					for (int i = 10; i <= 12; i++)
 					{
 						for (int j = 0; j < W; j++) 
 						{
@@ -362,7 +371,8 @@ int main(int argc, char *argv[])
 				{					
 					for (int i = 0; i < H; i++) 
 					{
-						for (int j = 0; j <= 2; j++) 						
+						//for (int j = 0; j <= 2; j++)
+						for (int j = 10; j <= 12; j++)
 						{
 							Stim[i*H + j] = S1_amp;
 						}
@@ -478,7 +488,7 @@ int main(int argc, char *argv[])
 		}
 		if(bStopSim)
 		{
-			//break;
+			break;
 		}		
 	} // sim_time loop
 

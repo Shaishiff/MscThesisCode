@@ -25,10 +25,13 @@ private:
 	void ProcessJobs();
 	void ProcessResults();
 	void ProcessResults(Candidate* pCandidate);
-	int GetMate();
-	void CreateChild(Candidate* pParent1, Candidate* pParent2, Candidate* pChild);
+	int ChooseRandomParent();
+	int Mutate(int nInValue);
+	Candidate* CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex);
+	Candidate* CreateRandomCandidate(int nIndex);
 	bool FindSimilarCandidate(int nIndex);
 	void CreateMutations();
+	double CalculateTargetCoverage(double** pBestMatch);
 	int CalculateError(double** pBestMatch);
 
 //////////////////////////////////////////////////////////////////////////////////////////

@@ -1,79 +1,38 @@
 
 #include "defs.h"
 #include "Candidate.h"
+#include "Mat.h"
 #include <algorithm>
 using namespace std;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-Candidate::Candidate(int nIndex)
-{	
+Candidate::Candidate(int nIndex, int nHStart, int nWStart, int nHEnd, int nWEnd)
+{
 	// Create the mats.
-	m_pFibroblastMat = CreateMat();
+	m_pFibroblastMat = CreateMat();	
 	m_pResult1 = CreateMat();
 	m_pResult2 = CreateMat();
-	ClearMat();
-	
+		
 	// Init the vars.
-	m_nIndex = nIndex;
+	m_nIndex = nIndex;	
+	m_nHStart = nHStart;
+	m_nWStart = nWStart;
+	m_nHEnd = nHEnd;
+	m_nWEnd = nWEnd;
 	m_cost = 0;
-	m_nCenterH = 0;
-	m_nCenterW = 0;
-	m_nHeight = 0;
-	m_nWidth = 0;	
+	/*
 	m_nParam1 = 0;
 	m_nParam2 = 0;
 	m_nVal1 = 0;
 	m_nVal2 = 0;
+	*/
 	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
 	
 	// Now create the fibroblats.
-	if(nIndex == -1)
-	{
-		// Use the target fibroblast mat.
-		m_nCenterH = TargetCenterH;
-		m_nCenterW = TargetCenterW;
-		m_nHeight = TargetHeight;
-		m_nWidth = TargetWidth;	
-	}
-	else
-	{
-		// Create a random fibroblast mat.
-		m_nCenterH = rand()%int(Nh) + 1;
-		m_nCenterW = rand()%int(Nw) + 1;
-		m_nHeight = rand()%int(Nh-m_nCenterH) + 1;
-		m_nWidth = rand()%int(Nw-m_nCenterW) + 1;
-	}
-	CreateFibroblasts();
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-Candidate::Candidate(int nCenterH, int nCenterW, int nHeight, int nWidth)
-{
-	// Create the mats.
-	m_pFibroblastMat = CreateMat();
-	m_pResult1 = CreateMat();
-	m_pResult2 = CreateMat();
 	ClearMat();
-	
-	// Init the vars.
-	m_nIndex = 0;
-	m_cost = 0;
-	m_nCenterH = nCenterH;
-	m_nCenterW = nCenterW;
-	m_nHeight = nHeight;
-	m_nWidth = nWidth;
-	m_nParam1 = 0;
-	m_nParam2 = 0;
-	m_nVal1 = 0;
-	m_nVal2 = 0;
-	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
-	
-	// Now create the fibroblats.	
-	CreateFibroblasts();
+	CreateFibroblastMat();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -110,25 +69,21 @@ void Candidate::ClearMat()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void Candidate::CreateFibroblasts()
+void Candidate::CreateFibroblastMat()
 {
-	ClearMat();
-	int nhStart = max((m_nCenterH),1);
-	int nhEnd = min((m_nCenterH+m_nHeight),Nh);
-	int nwStart = max((m_nCenterW),1);
-	int nwEnd = min((m_nCenterW+m_nWidth),Nw);
-	for (int iH=nhStart; iH < nhEnd; ++iH)
+	//ClearMat();
+	for (int iH = m_nHStart; iH <= m_nHEnd; ++iH)
 	{	
-		for (int iW=nwStart; iW < nwEnd; ++iW)
+		for (int iW = m_nWStart; iW <= m_nWEnd; ++iW)
 		{
 			m_pFibroblastMat[iH][iW] = 1.0;
 		}
-	}
+	}	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-
+/*
 void Candidate::Mutate()
 {
 	m_nParam1 = rand()%4;
@@ -140,16 +95,16 @@ void Candidate::Mutate()
 	switch(m_nParam1)
 	{
 		case 0:
-			m_nCenterH += m_nVal1;
+			m_nHStart += m_nVal1;
 			break;
 		case 1:
-			m_nCenterW += m_nVal1;
+			m_nWStart += m_nVal1;
 			break;
 		case 2:
-			m_nHeight += m_nVal1;
+			m_nHEnd += m_nVal1;
 			break;
 		case 3:
-			m_nWidth += m_nVal1;
+			m_nWEnd += m_nVal1;
 			break;
 	}		
 	switch(m_nParam2)
@@ -209,6 +164,15 @@ void Candidate::UnMutate()
 			m_nWidth -= m_nVal2;
 			break;
 	}
+}
+*/
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+char* Candidate::GetFullName()
+{ 
+	sprintf(m_cCandidateFullName,"(%d,%d) -> (%d,%d)", m_nHStart, m_nWStart, m_nHEnd, m_nWEnd);
+	return m_cCandidateFullName; 
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

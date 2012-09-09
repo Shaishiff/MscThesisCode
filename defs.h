@@ -32,12 +32,12 @@ const int MPI_RESULT_TAG = 4000;
 // GA defines and consts
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define Npop 15
+#define Npop 20
 #define MaxIterations 100
 #define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
 #define Nmates (Npop - NsurvivingPopulation)
-#define SAMPLING_INTERVALS	2
+#define SAMPLING_INTERVALS	1
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Physiological consts
@@ -45,7 +45,7 @@ const int MPI_RESULT_TAG = 4000;
 
 const double Cm = 1.0; // membrance capacitance - microF/cm^2
 const double Am = 3000.0; // 1/cm
-const double sigma = 7.75; // 0.3; 3.0*10^-4; mS/cm
+const double sigma = 8.3;//7.75; // 0.3; 3.0*10^-4; mS/cm
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // APD & CV Restitution
@@ -76,12 +76,17 @@ const double kwm = 10;
 // Space parameters
 #define dW 0.01 // cm/node
 #define dH 0.01 // cm/node
-#define W 1 // Width, x[cm]
-#define H 1 // Height, y[cm]
-const int Nw = (int)ceil(W/dW);
-const int Nh = (int)ceil(H/dH);
+#define W 1.2 // Width, x[cm]
+#define H 1.2 // Height, y[cm]
+const int Nw = (int)ceil(W/dW); // In indexes
+const int Nh = (int)ceil(H/dH); // In indexes
 #define Nw_with_border (Nw+2)
 #define Nh_with_border (Nh+2)
+#define MeasurementMarginIndexes 10
+#define Min_w_Fibroblast (MeasurementMarginIndexes + 1)
+#define Min_h_Fibroblast (MeasurementMarginIndexes + 1)
+#define Max_w_Fibroblast (Nw - (MeasurementMarginIndexes + 1))
+#define Max_h_Fibroblast (Nh - (MeasurementMarginIndexes + 1))
 
 // The values here are in cell indexes:
 const int TargetCenterH = 50;
@@ -122,12 +127,14 @@ struct ProtocolParams
 const double S1Amp = 5000.0;//500.0; // microA/cm^3
 const double S1TotalTime = 5; // milliseconds
 const double S1BeginTime = 2.0; // milliseconds
-const double S1hStart = 0.0;
-const double S1hEnd = dH*2;
+//const double S1hStart = 0.0;
+//const double S1hEnd = dH*2;
+const double S1hStart = dH*MeasurementMarginIndexes;
+const double S1hEnd = dH*(MeasurementMarginIndexes+2);
 const double S1wStart = 0.0;
 const double S1wEnd = W;
-const double S1hMeasureStart = H;
-const double S1hMeasureEnd = H;
+const double S1hMeasureStart = H-dH*MeasurementMarginIndexes;
+const double S1hMeasureEnd = H-dH*MeasurementMarginIndexes;
 const double S1wMeasureStart = 0.0;
 const double S1wMeasureEnd = W;
 
@@ -154,12 +161,14 @@ const double S2TotalTime = 5; // milliseconds
 const double S2BeginTime = 2.0; // milliseconds
 const double S2hStart = 0.0;
 const double S2hEnd = H;
-const double S2wStart = 0.0;
-const double S2wEnd = dW*2;
+//const double S2wStart = 0.0;
+//const double S2wEnd = dW*2;
+const double S2wStart = dW*MeasurementMarginIndexes;
+const double S2wEnd = dW*(MeasurementMarginIndexes+2);
 const double S2hMeasureStart = 0.0;
 const double S2hMeasureEnd = H;
-const double S2wMeasureStart = W;
-const double S2wMeasureEnd = W;
+const double S2wMeasureStart = W-dW*MeasurementMarginIndexes;
+const double S2wMeasureEnd = W-dW*MeasurementMarginIndexes;
 
 struct S2Protocol : public ProtocolParams
 {
