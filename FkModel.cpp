@@ -4,6 +4,7 @@
 #include "defs.h"
 #include "FkModel.h"
 #include "Mat.h"
+#include "FkModelDefs.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -81,30 +82,30 @@ void CFkModel::CleanupFkModel()
 
 void CFkModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 {
-	if(inFibroblastMat[iH-1][iW] == 1)
+	if(inFibroblastMat[iH-1][iW] == 1.0)
 	{
 		dVdh = (mat[iH+1][iW] - mat[iH][iW])/dH2;
 	}
-	else if (inFibroblastMat[iH + 1][iW] == 1)
+	else if (inFibroblastMat[iH + 1][iW] == 1.0)
 	{
 		dVdh = (mat[iH-1][iW] - mat[iH][iW])/dH2;
 	}
 	else
 	{
-		dVdh = (mat[iH-1][iW] + mat[iH+1][iW] - 2*mat[iH][iW])/dH2;
+		dVdh = (mat[iH-1][iW] + mat[iH+1][iW] - 2.0*mat[iH][iW])/dH2;
 	}
 
-	if(inFibroblastMat[iH][iW-1] == 1)
+	if(inFibroblastMat[iH][iW-1] == 1.0)
 	{
 		dVdw = (mat[iH][iW+1] - mat[iH][iW])/dW2;
 	}
-	else if (inFibroblastMat[iH][iW+1] == 1)
+	else if (inFibroblastMat[iH][iW+1] == 1.0)
 	{
 		dVdw  = (mat[iH][iW-1] - mat[iH][iW])/dW2;
 	}
 	else
 	{
-		dVdw  = (mat[iH][iW-1] + mat[iH][iW+1] - 2*mat[iH][iW])/dW2;
+		dVdw  = (mat[iH][iW-1] + mat[iH][iW+1] - 2.0*mat[iH][iW])/dW2;
 	}
 }
 
@@ -114,9 +115,7 @@ void CFkModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 #define INVALID_RISE_TIME	1000.0
 
 void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams, char* outputFolder)
-{		
-	//printf("ExecuteModel\n");
-	
+{			
 	CleanupFkModel();
 	double t_ung = 0.0;
 	double J_ung = 0.0;
@@ -129,6 +128,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 	double Jion = 0.0;
 	double dFirstRiseTime = 0.0;
 	
+	// Init the 
 	for (int iH = 1; iH < Nh+1; ++iH)
 	{
 		for (int iW = 1; iW < Nw+1; ++iW)
@@ -147,7 +147,6 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 	// Start the temporal loop.
 	for (int iT = 0; iT < Nt; ++iT)
 	{   		
-		//printf("ExecuteModel: %d\n", iT);
 		// Calc the time in ms and check if we need to use the S1 protocol.
 		double curTime = iT*dt;
 		bool bS1 = ((curTime >= protParams.m_BeginTime) && (curTime <= (protParams.m_BeginTime+protParams.m_TotalTime)));
@@ -156,10 +155,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 		{
 			if(iT%200 == 0)
 			{
-				char modelOutput[FILE_NAME_BUFFER_SIZE] = {0};
-				//sprintf(modelOutput, "ModelOutput_at_%.2f.txt", curTime);
-				//SaveMatToFile(mat, modelOutput, outputFolder);
-				
+				char modelOutput[FILE_NAME_BUFFER_SIZE] = {0};				
 				sprintf(modelOutput, "%s\\ModelOutput_at_%.2f.txt", outputFolder, curTime);				
 				SaveMatToFileWithFullName(mat, modelOutput);
 				printf("Saved file %s\n", modelOutput);
@@ -172,9 +168,9 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 			for (int iW = 1; iW < Nw+1; ++iW)
 			{            
 				if(inFibroblastMat[iH][iW] != 1)
-				{					
-					CalculateDer(iH, iW, inFibroblastMat);
-					
+				{										
+					// Check if we need to add a stimulation current
+					// according to the protocol.
 					double Jstim = 0.0;
 					if(bS1)
 					{
@@ -189,19 +185,18 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 						}
 					}
 
+					// Search for the rise time of each cell.
 					double v = mat[iH][iW];
 					if((outRiseTimeMat[iH][iW] == INVALID_RISE_TIME) && (v > 0.3))
 					{
-						//if(Jstim == 0.0)
-						{							
-							if(dFirstRiseTime == 0.0)
-							{
-								dFirstRiseTime = iT*dt;
-							}
-							outRiseTimeMat[iH][iW] = iT*dt - dFirstRiseTime;
+						if(dFirstRiseTime == 0.0)
+						{
+							dFirstRiseTime = iT*dt;
 						}
+						outRiseTimeMat[iH][iW] = iT*dt - dFirstRiseTime;
 					}
 
+					// Start calculating the ion currents.
 					double s = s_mat[iH][iW];
 					double f = f_mat[iH][iW];
 
@@ -259,7 +254,10 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 
 					Jion = J_fast + J_slow + J_ung;
 
-					new_mat[iH][iW] = mat[iH][iW] + ((dt*sigma)/(Cm*Am))*(dVdh + dVdw) - (dt/Cm)*Jion + (dt/(Am*Cm))*Jstim;
+					// Calculate the ODEs.
+					CalculateDer(iH, iW, inFibroblastMat);
+					//new_mat[iH][iW] = mat[iH][iW] + ((dt*sigma)/(Cm*Am))*(dVdh + dVdw) - (dt/Cm)*Jion + (dt/(Am*Cm))*Jstim;
+					new_mat[iH][iW] = mat[iH][iW] + ((dt*sigma)/(Am))*(dVdh + dVdw) - (dt/Cm)*Jion + (dt/(Am*Cm))*Jstim;
 					new_s_mat[iH][iW] = s_mat[iH][iW] + dt*(s_inf - s)/tau_s;                        
 					new_f_mat[iH][iW] = f_mat[iH][iW] + dt*(f_inf - f)/tau_f;                
 				}
@@ -281,14 +279,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 		f_mat = new_f_mat;
 		new_f_mat = temp;
 
-		//
-		//printf("protParams.m_hMeasureStart: %.3f\n", protParams.m_hMeasureStart);
-		//printf("protParams.m_hMeasureEnd: %.3f\n", protParams.m_hMeasureEnd);
-		//printf("protParams.m_wMeasureStart: %.3f\n", protParams.m_wMeasureStart);
-		//printf("protParams.m_wMeasureEnd: %.3f\n", protParams.m_wMeasureEnd);
-		//
-		
-		
+		// Check if we can stop the simulation.
 		bool bStopSim = true;
 		for (double curH = protParams.m_hMeasureStart; curH <= protParams.m_hMeasureEnd; curH += dH)
 		{
@@ -296,29 +287,16 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 			{            									
 				int iH = (int)ceil(curH/dH);
 				int iW = (int)ceil(curW/dW);
-				//double curH = iH*dH;
-				//double curW = iW*dW;
-				//printf("curW: %.3f, curH: %.3f\n", curW, curH);
-				/*
-				if(curH >= protParams.m_hMeasureStart &&
-				   curH <= protParams.m_hMeasureEnd &&
-				   curW >= protParams.m_wMeasureStart &&
-				   curW <= protParams.m_wMeasureEnd)
-				   */
+				if(outRiseTimeMat[iH][iW] == INVALID_RISE_TIME)
 				{
-					//printf("Checking rise time at curW: %.3f, curH: %.3f\n", curW, curH);
-					if(outRiseTimeMat[iH][iW] == INVALID_RISE_TIME)
-					{
-						bStopSim = false;
-						break;
-					}
+					bStopSim = false;
+					break;
 				}
 			}
 		}
 
 		if(bStopSim)
 		{
-			//printf("Breaking sim: %d\n", iT);
 			break;
 		}		
 	}	

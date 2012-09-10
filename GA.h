@@ -7,12 +7,12 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-class Ga
+class CGA
 {
 public:
-	Ga();
-	~Ga();
-	void RunGa();
+	CGA();
+	~CGA();
+	void RunGA();
 	void Test();
 	
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -20,28 +20,23 @@ public:
 
 private:
 	bool ReadTargetMeasurements();
-	void CreateTargetMeasurements();
 	void CreateJobs();
 	void ProcessJobs();
 	void ProcessResults();
 	void ProcessResults(Candidate* pCandidate);
 	int ChooseRandomParent();
 	int Mutate(int nInValue);
+	void CreateRandomPopulation();
 	Candidate* CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex);
-	Candidate* CreateRandomCandidate(int nIndex);
-	bool FindSimilarCandidate(int nIndex);
-	void CreateMutations();
+	Candidate* CreateRandomCandidate(int nIndex);	
 	double CalculateTargetCoverage(double** pBestMatch);
 	int CalculateError(double** pBestMatch);
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 	
-public:
-	static int nNumberOfMachines;	
-	
-private:	
-	int m_nCurIteration;
+private:
+	int m_nNumberOfMachines;
 	double* m_pTargetMeasurement1;
 	double* m_pTargetMeasurement2;
 	double** m_pTargetFibroblastMat;
