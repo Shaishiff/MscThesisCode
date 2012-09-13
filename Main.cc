@@ -63,7 +63,7 @@ const double Vrm_fibro = (double) -15.9; // mV Kamkin A. Experimental Physiology
 //const double S1_amp = -142.4;//3.0752 -100.0;//-100*Cm; // pA
 const double S1_amp = -100.0;//3.0752 -100.0;//-100*Cm; // pA
 const double S1_total_time = 5.0; // 50.0 milliseconds
-const double S1_begin = 50.0; // milliseconds
+const double S1_begin = 25.0; // milliseconds
 
 /*
 const double S2_amp = 0.0;//-100.0;//-3000.0;//-3000.0; //-80.0*Cm; // pA
@@ -171,19 +171,20 @@ void SaveToFile(double sim_time)
 
 /*****************************************************************************/
 
-const int Protocol = 2; // Can be either 1 or 2
+const int Protocol = 1; // Can be either 1 or 2
 
+/*
 const int TargetCenterH = 50;
 const int TargetCenterW = 40;
 const int TargetHeight = 15;
 const int TargetWidth = 25;
+*/
 
-/*
 const int TargetCenterH = 0;
 const int TargetCenterW = 0;
 const int TargetHeight = 0;
 const int TargetWidth = 0;
-*/
+
 #define INVALID_RISE_TIME	1000.0
 
 int main(int argc, char *argv[])

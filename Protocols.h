@@ -25,9 +25,9 @@ struct ProtocolParams
 //////////////////////////////////////////////////////////////////////////////////////////
 
 // Protocol parameters:
-const double S1Amp = 5000.0;//500.0; // microA/cm^3
+const double S1Amp = 1.5;//5000.0/3000.0;//500.0; // microA/cm^3
 const double S1TotalTime = 5; // milliseconds
-const double S1BeginTime = 2.0; // milliseconds
+const double S1BeginTime = 5.0; // milliseconds
 //const double S1hStart = 0.0;
 //const double S1hEnd = dH*2;
 const double S1hStart = dH*MeasurementMarginIndexes;
@@ -60,9 +60,9 @@ struct S1Protocol : public ProtocolParams
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-const double S2Amp = 5000.0;//500.0; // microA/cm^3
+const double S2Amp = 1.5;//5000.0/3000.0;//500.0; // microA/cm^3
 const double S2TotalTime = 5; // milliseconds
-const double S2BeginTime = 2.0; // milliseconds
+const double S2BeginTime = 5.0; // milliseconds
 const double S2hStart = 0.0;
 const double S2hEnd = H;
 //const double S2wStart = 0.0;
