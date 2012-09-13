@@ -1,6 +1,7 @@
 
 #include "GA.h"
 #include "FkModel.h"
+#include "SBModel.h"
 #include "Mat.h"
 #include "Log.h"
 
@@ -674,40 +675,121 @@ void StartSlaveProcess()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+double hs(double in_var)
+{
+    if(in_var > 0.0)
+        return 1.0;
+    else if (in_var < 0.0) 
+        return 0.0;
+    else return 0.5;
+}
+
+/***************************
+* Schraudolph's algorithm: *
+***************************/
+
+#define LITTLE_ENDIAN
+static union
+{
+	double d;
+	struct
+	{
+#ifdef LITTLE_ENDIAN
+		int j, i;
+#else
+		int i, j;
+#endif
+	} n;
+} _eco;
+
+#define EXP_A (1048576/M_LN2)	// 2^20/LN(2) use 1512775 for integer version
+#define EXP_C 60801	 // see text for choice of c values
+#define EXP(y) (_eco.n.i = EXP_A*(y) + (1072693248 - EXP_C), _eco.d)
+
+#define shaisExp(d) exp(d)
+
+double calc_bh(double V)
+{
+	double d1 = 3.56*shaisExp(0.079*V);
+	double d2 = 3.1*100000.0*shaisExp(0.35*V);
+	//hs(-V-40.0);
+	double d3 = (1.0/(0.13*(1.0+shaisExp(-(V+10.66)/11.1))));
+	// hs(V+40.0)
+	printf("d1: %.5f, d2: %.5f, d3: %.5f\n", d1, d2, d3);
+    //return (3.56*shaisExp(0.079*V) + 3.1*100000.0*shaisExp(0.35*V))*hs(-V-40.0) + hs(V+40.0)*(1.0/(0.13*(1.0+shaisExp(-(V+10.66)/11.1))));	
+	return hs(-V-40.0)*(d1 + d2) + hs(V+40.0)*d3;
+}
+
+/*
+double myExp(double in_var)
+{
+#define N 7.0
+	double dRet = 1.0 + in_var;
+	double dMul = 1.0;
+	double dPow = in_var;
+	for(double iN = 2.0; iN <= N; iN += 1.0)
+	{
+		dMul = dMul*iN;
+		dPow = dPow*in_var;
+		dRet += dPow/dMul;
+	}
+	return dRet;
+	//return (1.0 + in_var + (in_var*in_var)/2.0 + (in_var*in_var*in_var)/6.0);
+	//return exp(in_var);
+}
+*/
 void CGA::Test()
 {
 	LOG("----------------------- Test started -----------------------");
 	
+	/*
+	double in = 11.0;
+	double dExp = exp(in);
+	double dMyExp = EXP(in);
+	LOG2("dExp: %.5f, dMyExp: %.5f", dExp, dMyExp);
+	return;
+	*/
+	/*
+	double V = -80.0;
+	double d = calc_bh(V);;
+	LOG1("d: %.5f", d);
+	return;
+	*/
+	
 	int nIndex = 0;
-	Candidate* pCandidate = new Candidate(nIndex, 50, 40, 64, 64);
-	//Candidate* pCandidate = new Candidate(nIndex, 0, 0, 0, 0); // No mat.
+	//Candidate* pCandidate = new Candidate(nIndex, 50, 40, 64, 64);
+	Candidate* pCandidate = new Candidate(nIndex, 0, 0, 0, 0); // No mat.
 	SaveMatToFile(pCandidate->m_pFibroblastMat, "TestMat.txt");
 	LOG1("Testing cost with candidate: %s", pCandidate->GetFullName());
 	S1Protocol s1;
 	S2Protocol s2;
-	CFkModel* pModel = new CFkModel();				
+	//CFkModel* pModel = new CFkModel();
+	CSBModel* pModel = new CSBModel();
 	clock_t startingTime;
 	clock_t endingTime;
 	double runningTime = 0.0;
 	
 	LOG("Executing 1st protocol");
 	startingTime = clock();
-	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult1, s1);//, "/a/home/cc/students/enginer/shaishif/Logs/Output");
+	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult1, s1, "/a/home/cc/students/enginer/shaishif/Logs/Output");
 	SaveMatToFile(pCandidate->m_pResult1, "TestMatResults1.txt");
 	endingTime = clock();
 	runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);	
 	LOG1("Finished executing 1st protocol after %.3f seconds", runningTime);
 	
-	LOG("Executing 2nd protocol");
-	startingTime = clock();
-	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult2, s2);	
-	SaveMatToFile(pCandidate->m_pResult2, "TestMatResults2.txt");
-	endingTime = clock();
-	runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);	
-	LOG1("Finished executing 2nd protocol after %.3f seconds", runningTime);
+	//if(false)
+	{
+		LOG("Executing 2nd protocol");
+		startingTime = clock();
+		pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult2, s2);	
+		SaveMatToFile(pCandidate->m_pResult2, "TestMatResults2.txt");
+		endingTime = clock();
+		runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);	
+		LOG1("Finished executing 2nd protocol after %.3f seconds", runningTime);
+	}	
 	
 	// Compare results to the target.
-	if(false)
+	//if(false)
 	{
 		if(ReadTargetMeasurements())
 		{
@@ -723,6 +805,8 @@ void CGA::Test()
 
 	delete pModel;
 	delete pCandidate;
+	
+	LOG("----------------------- Test ended -----------------------");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
