@@ -15,9 +15,9 @@ public:
 	void ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams, char* outputFolder = NULL);
 
 private:
-	void InitFkModel();
-	void DeleteFkModel();
-	void CleanupFkModel();
+	void InitModel();
+	void DeleteModel();
+	void CleanupModel();
 	void CalculateDer(int iH, int iW, double** inFibroblastMat);	
 
 private:

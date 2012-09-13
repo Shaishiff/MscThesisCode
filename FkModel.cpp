@@ -21,7 +21,7 @@ CFkModel::CFkModel()
 	new_s_mat = NULL;
 	f_mat = NULL;
 	new_f_mat = NULL;
-	InitFkModel();
+	InitModel();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -29,13 +29,13 @@ CFkModel::CFkModel()
 
 CFkModel::~CFkModel()
 {
-	DeleteFkModel();
+	DeleteModel();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void CFkModel::InitFkModel()
+void CFkModel::InitModel()
 {
 	mat = CreateMat();
 	new_mat = CreateMat();
@@ -48,7 +48,7 @@ void CFkModel::InitFkModel()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void CFkModel::DeleteFkModel()
+void CFkModel::DeleteModel()
 {
 	DestroyMat(mat);
 	DestroyMat(new_mat);
@@ -61,7 +61,7 @@ void CFkModel::DeleteFkModel()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void CFkModel::CleanupFkModel()
+void CFkModel::CleanupModel()
 {
 	for(int iH = 0; iH < Nh_with_border; ++iH)
 	{
@@ -116,7 +116,7 @@ void CFkModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 
 void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams, char* outputFolder)
 {			
-	CleanupFkModel();
+	CleanupModel();
 	double t_ung = 0.0;
 	double J_ung = 0.0;
 	double s_inf = 0.0;
@@ -156,7 +156,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 			if(iT%200 == 0)
 			{
 				char modelOutput[FILE_NAME_BUFFER_SIZE] = {0};				
-				sprintf(modelOutput, "%s\\ModelOutput_at_%.2f.txt", outputFolder, curTime);				
+				sprintf(modelOutput, "%s/ModelOutput_at_%.2f.txt", outputFolder, curTime);				
 				SaveMatToFileWithFullName(mat, modelOutput);
 				printf("Saved file %s\n", modelOutput);
 			}
@@ -257,7 +257,7 @@ void CFkModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 					// Calculate the ODEs.
 					CalculateDer(iH, iW, inFibroblastMat);
 					//new_mat[iH][iW] = mat[iH][iW] + ((dt*sigma)/(Cm*Am))*(dVdh + dVdw) - (dt/Cm)*Jion + (dt/(Am*Cm))*Jstim;
-					new_mat[iH][iW] = mat[iH][iW] + ((dt*sigma)/(Am))*(dVdh + dVdw) - (dt/Cm)*Jion + (dt/(Am*Cm))*Jstim;
+					new_mat[iH][iW] = mat[iH][iW] + dt*(Diffusion*(dVdh + dVdw) - Jion + Jstim);
 					new_s_mat[iH][iW] = s_mat[iH][iW] + dt*(s_inf - s)/tau_s;                        
 					new_f_mat[iH][iW] = f_mat[iH][iW] + dt*(f_inf - f)/tau_f;                
 				}
