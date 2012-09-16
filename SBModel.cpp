@@ -112,6 +112,8 @@ void CSBModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+#define EPSILON	double(0.000001)
+
 /***************************
 * Schraudolph's algorithm: *
 ***************************/
@@ -174,7 +176,14 @@ double calc_alpha_h(double V)
 
 double calc_alpha_m(double V)
 {
-    return (0.32*(V+47.13))/(1.0-shaisExp(-0.1*(V+47.13)));
+	double dividend = 0.32*(V+47.13);
+	double divisor = 1.0-shaisExp(-0.1*(V+47.13));
+	if(fabs(divisor) < EPSILON) 
+	{
+		//printf("EPSILON for %.6f where dividend= %.6f and divisor=%.6f\n", V, dividend, divisor);
+		divisor = EPSILON;
+	}
+    return dividend/divisor;
 }
 
 double calc_beta_h(double V)
@@ -206,16 +215,8 @@ double calc_beta_m(double V)
 void CSBModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams, char* outputFolder)
 {			
 	CleanupModel();
-	double I_na = 0.0;
-    double alpha_h = 0.0;
-    double alpha_m = 0.0;
-    double beta_h = 0.0;
-    double beta_m = 0.0;
-    double tau_h = 0.0;
-    double tau_m = 0.0;
-	double dFirstRiseTime = 0.0;
 	
-	// Init the 
+	// Init the rise time mat.
 	for (int iH = 1; iH < Nh+1; ++iH)
 	{
 		for (int iW = 1; iW < Nw+1; ++iW)
@@ -230,7 +231,8 @@ void CSBModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 			}
 		}
 	}
-
+	
+	double dFirstRiseTime = 0.0;	
 	// Start the temporal loop.
 	for (int iT = 0; iT < Nt; ++iT)
 	{   		
@@ -288,27 +290,41 @@ void CSBModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 					double f = f_mat[iH][iW];
 
 					// Ungated  Outward  Current
-					I_na = g_na*(V_na - v);
-                    alpha_h = calc_alpha_h(v);
-                    alpha_m = calc_alpha_m(v);
-                    beta_h = calc_beta_h(v);
-                    beta_m = calc_beta_m(v);
-					/*
-					if(Jstim != 0.0 && iH == 10 && iW == 10)
-					{
-						printf("%d with %.3f: %.4f, %.4f, %.4f, %.4f\n", v, iT, alpha_h, alpha_m, beta_h, beta_m);
-					}
-					*/
-                    tau_h = 1.0/(alpha_h + beta_h);
-                    tau_m = 1.0/(alpha_m + beta_m);
-
+					double I_na = g_na*(V_na - v);
+                    double alpha_h = calc_alpha_h(v);
+                    double alpha_m = calc_alpha_m(v);
+                    double beta_h = calc_beta_h(v);
+                    double beta_m = calc_beta_m(v);
+					double tau_h = 1.0/(alpha_h + beta_h);
+                    double tau_m = 1.0/(alpha_m + beta_m);
+					
+					CalculateDer(iH, iW, inFibroblastMat);
+					                    
 					// h = s
 					// m = f					
 					// Calculate the ODEs.
-					CalculateDer(iH, iW, inFibroblastMat);
 					new_mat[iH][iW] = mat[iH][iW] + dt*(Diffusion*(dVdh + dVdw) + I_na*j_var*s*(f*f*f) + Jstim);
 					new_s_mat[iH][iW] = dt*((heavySide(V_h-v)-s)/tau_h) + s;
 					new_f_mat[iH][iW] = dt*((heavySide(v-V_m)-f)/tau_m) + f;
+									
+					if(isnan(dVdh) || isnan(alpha_h) || isnan(alpha_m) || isnan(beta_h) || isnan(beta_m) ||
+					   isnan(new_mat[iH][iW]) || isnan(new_s_mat[iH][iW]) || isnan(new_f_mat[iH][iW]))
+					{
+						printf("********* ERROR **********\n");
+						printf("NAN at iH=%d, iW=%d\n", iH, iW);
+						for(int xx = iH-1; xx <= iH+1; xx++)
+						{
+							for(int yy = iW-1; yy <= iW+1; yy++)
+							{
+								printf("V(%d,%d)=%.3f  ", xx, yy, mat[xx][yy]);
+							}
+							printf("\n");
+						}
+						printf("%d with %.3f: alpha_h: %.4f, alpha_m: %.4f, beta_h: %.4f, beta_m: %.4f\n", iT, v, alpha_h, alpha_m, beta_h, beta_m);
+						printf("%d with %.3f: tau_h: %.4f, tau_m: %.4f, dVdh: %.4f, dVdw: %.4f\n", iT, v, tau_h, tau_m, dVdh, dVdw);
+						printf("**************************\n");
+						throw;
+					}
 				}
 			}
 		}
@@ -346,11 +362,12 @@ void CSBModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 
 		if(bStopSim)
 		{
-			break;
+			return;
 		}
-		
-		//if(iT == 1200) break;
-	}	
+	}
+	
+	// If should get here normally. This means that
+	// the simulation time wasn't long enough.
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
