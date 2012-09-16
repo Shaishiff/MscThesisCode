@@ -60,7 +60,7 @@ const int Nh = (int)ceil(H/dH); // In indexes
 
 // Time parameters:
 const double dt = 0.005; // millisec
-const double MaxSimulationTime = max(W,H)*400; // Total time of simulation
+const double MaxSimulationTime = 100.0; // Total time of simulation
 const int Nt = (int)(ceil(MaxSimulationTime/dt));
 
 //////////////////////////////////////////////////////////////////////////////////////////
