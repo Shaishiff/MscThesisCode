@@ -15,8 +15,8 @@ public:
 	char* GetFullName();
 
 private:
-	void ClearMat();
-	void CreateFibroblastMat();
+	void CreateFibroblastBorders();
+	void CreateFibroblastPatch();
 	
 public:	
 	double** m_pFibroblastMat;
