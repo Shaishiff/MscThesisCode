@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include "Nhumatr.h" 
 
 const double PI = 3.1415926;
@@ -376,6 +377,7 @@ int main(int argc, char *argv[])
 	}
 	
 	fibrosis_name="fibrosis_matrix.txt";
+	Model* Models = (Model*) malloc(W*H*sizeof(Model));
 	state_variables* Node = (state_variables*) malloc(W*H*sizeof(state_variables));
 	state_variables* pNewNode = (state_variables*) malloc(W*H*sizeof(state_variables));
 	state_variables* pTempNode = NULL;
@@ -429,6 +431,7 @@ int main(int argc, char *argv[])
 	}
 	SaveProtFile(Stim);
 
+	clock_t iterationStartingTime = clock();
 	double bStim = false;
 	// time loop
 	for (sim_time = 0; sim_time < (max_time+time_step); sim_time += time_step)
@@ -437,10 +440,14 @@ int main(int argc, char *argv[])
 	
 		if (sim_time >= time_to_send)
 		{
-			printf("Time: %.2f\n", sim_time);						
+			clock_t iterationEndingTime = clock();
+			double iterationRunningTime = (iterationEndingTime - iterationStartingTime)/double(CLOCKS_PER_SEC);
+
+			printf("Time: %.2f (duration from last print: %.2f)\n", sim_time, iterationRunningTime);
 			SaveToFile(sim_time, Node);
 			Show_Vm_Char(fibrosis_matrix, Node);
 			time_to_send += send_period;
+			iterationStartingTime = clock();
 		}
 
 		for (int x = 0; x < W; x++) 
@@ -480,7 +487,7 @@ int main(int argc, char *argv[])
 					dVm[x*H+y]=((dVm_plus_x-dVm_minus_x)*dH+(dVm_plus_y-dVm_minus_y)*dW)/(dW*dH);
 
 					double dStim = bStim ? Stim[nCurIndex] : 0.0;
-					I_temp[nCurIndex] = Total_transmembrane_currents(Node[nCurIndex], pNewNode[nCurIndex], dStim);
+					I_temp[nCurIndex] = Models[nCurIndex].Total_transmembrane_currents(Node[nCurIndex], pNewNode[nCurIndex], dStim);
 					pNewNode[nCurIndex].V = Node[nCurIndex].V + time_step*(dVm[nCurIndex] - I_temp[nCurIndex]);
 					I_temp[nCurIndex] = I_temp[nCurIndex] - dStim;
 					//Vm[nCurIndex] = pNewNode[nCurIndex].V;
