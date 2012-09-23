@@ -31,6 +31,9 @@ private:
 	Candidate* CreateRandomCandidate(int nIndex);	
 	double CalculateTargetCoverage(double** pBestMatch);
 	int CalculateError(double** pBestMatch);
+	bool IsNewChild(Candidate* pChild);
+	void AddChildToPastCandidates(Candidate* pChild);
+	void ClearPastCandidates();
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -44,6 +47,7 @@ private:
 	double* Rank;
 	vector<Candidate*> Population;
 	CSafeJobVector m_jobVector;
+	vector<char*> PastCandidates;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////

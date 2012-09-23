@@ -152,8 +152,8 @@ bool CGA::ReadTargetMeasurements()
 	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults1.txt");
 	for (int iW = 1; iW <= Nw; ++iW)
 	{		
-		m_pTargetMeasurement1[iW] = arr[Nh-MeasurementMarginIndexes][iW];
-		LOG3("Reading target measurements Prot1, (%d,%d): %.3f", Nh-MeasurementMarginIndexes, iW, m_pTargetMeasurement1[iW]);
+		m_pTargetMeasurement1[iW] = arr[Nh-MeasurementMarginIndexes][iW] - arr[MeasurementMarginIndexes + 1][iW];
+		//LOG3("Reading target measurements Prot1, (%d,%d): %.3f", Nh-MeasurementMarginIndexes, iW, m_pTargetMeasurement1[iW]);
 	}
 	myfile.close();
 
@@ -175,8 +175,8 @@ bool CGA::ReadTargetMeasurements()
 	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults2.txt");
 	for (int iH = 1; iH <= Nh; ++iH)
 	{		
-		m_pTargetMeasurement2[iH] = arr[iH][Nw-MeasurementMarginIndexes];
-		LOG3("Reading target measurements Prot2, (%d,%d): %.3f", iH, Nw-MeasurementMarginIndexes, m_pTargetMeasurement2[iH]);
+		m_pTargetMeasurement2[iH] = arr[iH][Nw-MeasurementMarginIndexes] - arr[iH][MeasurementMarginIndexes + 1];
+		//LOG3("Reading target measurements Prot2, (%d,%d): %.3f", iH, Nw-MeasurementMarginIndexes, m_pTargetMeasurement2[iH]);
 	}
 	myfile.close();
 
@@ -260,27 +260,35 @@ void CGA::ProcessJobs()
 void CGA::ProcessResults(Candidate* pCandidate)
 {
 	// Calculate the cost for this candidate.
+	int nCost1 = 0;
+	int nCost2 = 0;
 	pCandidate->m_cost = 0;
 	
 	// Calculate cost from result 1.
 	for (int iW = 1; iW < Nw+1; iW += SAMPLING_INTERVALS)
 	{
-		int nCandidateResult = (int)ceil(pCandidate->m_pResult1[Nh-MeasurementMarginIndexes][iW] * 1000);
+		double dCandidateResult = pCandidate->m_pResult1[Nh-MeasurementMarginIndexes][iW] - pCandidate->m_pResult1[MeasurementMarginIndexes + 1][iW];
+		int nCandidateResult = (int)ceil(dCandidateResult * 1000);
 		int nTargetResult = (int)ceil(m_pTargetMeasurement1[iW] * 1000);
 		int nCost = std::abs(nCandidateResult - nTargetResult);
 		pCandidate->m_cost += (unsigned long int)nCost;
-		LOG4("ProcessResults, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
+		nCost1 += (unsigned long int)nCost;
+		LOG5("ProcessResults1 at %d, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", iW, nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
 	}
-
+	LOG1("ProcessResults1, total cost for protocol1: ", nCost1);
+	
 	// Calculate cost from result 2.
 	for (int iH = 1; iH < Nh+1; iH += SAMPLING_INTERVALS)
 	{
-		int nCandidateResult = (int)ceil(pCandidate->m_pResult2[iH][Nw-MeasurementMarginIndexes] * 1000);
+		double dCandidateResult = pCandidate->m_pResult2[iH][Nw-MeasurementMarginIndexes] - pCandidate->m_pResult2[iH][MeasurementMarginIndexes + 1];
+		int nCandidateResult = (int)ceil(dCandidateResult * 1000);
 		int nTargetResult = (int)ceil(m_pTargetMeasurement2[iH] * 1000);
 		int nCost = std::abs(nCandidateResult - nTargetResult);
 		pCandidate->m_cost += (unsigned long int)nCost;
-		LOG4("ProcessResults, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
+		nCost2 += (unsigned long int)nCost;
+		LOG5("ProcessResults2 at %d, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", iH, nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
 	}
+	LOG1("ProcessResults2, total cost for protocol2: ", nCost2);
 	
 	LOG3("- ProcessResults, current cost for candidate #%d, %s: %u", pCandidate->m_nIndex, pCandidate->GetFullName(), pCandidate->m_cost);
 }
@@ -349,6 +357,43 @@ int CGA::Mutate(int nInValue)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+bool CGA::IsNewChild(Candidate* pChild)
+{
+	for(int iPastChild = 0; iPastChild < (int)PastCandidates.size(); iPastChild++)
+	{
+		if(strcmp(PastCandidates[iPastChild], pChild->GetFullName()) == 0)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+void CGA::ClearPastCandidates()
+{
+	for(int iPastChild = 0; iPastChild < (int)PastCandidates.size(); iPastChild++)
+	{
+		delete PastCandidates[iPastChild];		
+	}
+	PastCandidates.clear();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+void CGA::AddChildToPastCandidates(Candidate* pChild)
+{
+	char* pPastCandidate = new char[CANDIDATE_MAX_NAME_LENGTH];
+	memcpy(pPastCandidate, pChild->GetFullName(), CANDIDATE_MAX_NAME_LENGTH);
+	PastCandidates.push_back(pPastCandidate);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 Candidate* CGA::CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex)
 {
 	LOG2("Parent1, Candidate #%d: %s", pParent1->m_nIndex, pParent1->GetFullName());	
@@ -358,8 +403,17 @@ Candidate* CGA::CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex
 	int nHEnd = Mutate((rand()%2 == 1) ? pParent1->m_nHEnd : pParent2->m_nHEnd);
 	int nWEnd = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd : pParent2->m_nWEnd);
 	Candidate* pChild = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
-	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());	
+	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());
+	
+	// Check if we already had this child.
+	if(!IsNewChild(pChild))
+	{
+		LOG("Already had this child, Don't use this child and try again");
+		delete pChild;
+		return NULL;
+	}		
 	LOG("-");
+	AddChildToPastCandidates(pChild);
 	return pChild;
 }
 
@@ -389,8 +443,8 @@ int CGA::CalculateError(double** pBestMatch)
 
 double CGA::CalculateTargetCoverage(double** pBestMatch)
 {
-	int nTargetSize = 0;
-	int nCoverage = 0;
+	double dTargetSize = 0.0;
+	double dCoverage = 0.0;
 	for(int iH = 1; iH < Nh+1; ++iH)
 	{
 		for(int iW = 1; iW < Nw+1; ++iW)
@@ -399,16 +453,18 @@ double CGA::CalculateTargetCoverage(double** pBestMatch)
 			int nMatch = (int)ceil(pBestMatch[iH][iW]);
 			if(nTarget != 0)
 			{
-				nTargetSize++;
+				//printf("Target=%d at iH=%d, iW=%d\n", nTarget, iH, iW);
+				dTargetSize++;
 				if(nMatch != 0)
 				{
-					nCoverage++;
+					//printf("nMatch=%d at iH=%d, iW=%d\n", nTarget, iH, iW);
+					dCoverage++;
 				}				
 			}
 		}
 	}
-	if(nCoverage == 0) return 0.0;
-	return 100.0*(nCoverage/nTargetSize);
+	if(dCoverage == 0.0) return 0.0;
+	return 100.0*(dCoverage/dTargetSize);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -425,7 +481,12 @@ void CGA::RunGA()
 	
 	// Create the starting population of candidates.
 	CreateRandomPopulation();
-
+	
+	for(int iPop = 0; iPop < Npop; ++iPop)
+	{
+		AddChildToPastCandidates(Population[iPop]);		
+	}
+	
 	// Create min cost file.
 	char minCostFileName[1024] = {0};
 	sprintf(minCostFileName, "%s/MinCost.txt", LOG_FOLDER);
@@ -502,7 +563,7 @@ void CGA::RunGA()
 		int nError = CalculateError(Population[0]->m_pFibroblastMat);
 		LOG1("The (geomatric) error for the best match is: %d", nError);
 		double dCoverage = CalculateTargetCoverage(Population[0]->m_pFibroblastMat);
-		LOG1("The coverage for the best match is: %.3f", dCoverage);
+		LOG1("The target coverage for the best match is: %.3f%%", dCoverage);
 		pMinCostFile = fopen(minCostFileName, "a");
 		if(pMinCostFile != NULL)
 		{
@@ -563,7 +624,10 @@ void CGA::RunGA()
 			delete Population[nNewCandidateIndex];
 			LOG4("Creating offspring %d (candidate #%d) from parents %d and %d", iOffspring+1, nNewCandidateIndex, nFirstParent, nSecondParent);
 			Population[nNewCandidateIndex] = CreateChild(Population[nFirstParent], Population[nSecondParent], nNewCandidateIndex);
-			++iOffspring;
+			if(Population[nNewCandidateIndex] != NULL) // Only if we got a new child we can continue.
+			{
+				++iOffspring;
+			}
 		}
     		         
 		//CreateMutations();
@@ -574,6 +638,8 @@ void CGA::RunGA()
 	LOG2("The best match found is: %s, with cost: ", Population[0]->GetFullName(), MinCost[nCurIteration]);
 	int nError = CalculateError(Population[0]->m_pFibroblastMat);
 	LOG1("The error for this match is: %d", nError);
+	
+	ClearPastCandidates();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -676,28 +742,40 @@ void StartSlaveProcess()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+#include "SBModelDefs.h"
+
 void CGA::Test()
 {
+	//for(double dDiff = -0.0000020; dDiff <= 0.0000020; dDiff += 0.0000001)
+	//for(double dj = -0.01; dj <= 0.01; dj += 0.0005)
+	{
+
 	LOG("----------------------- Test started -----------------------");
 	
 	int nIndex = 0;
 	//Candidate* pCandidate = CreateRandomCandidate(nIndex);
-	//Candidate* pCandidate = new Candidate(nIndex, 50, 40, 64, 64);
-	Candidate* pCandidate = new Candidate(nIndex, 62,54,83,80);
 	//Candidate* pCandidate = new Candidate(nIndex, 0, 0, 0, 0); // No mat.
+	Candidate* pCandidate = new Candidate(nIndex, 50, 40, 64, 64);
+	//Candidate* pCandidate = new Candidate(nIndex, 58,49,68,66);
+	
 	SaveMatToFile(pCandidate->m_pFibroblastMat, "TestMat.txt");
 	LOG1("Testing cost with candidate: %s", pCandidate->GetFullName());
 	S1Protocol s1;
 	S2Protocol s2;
-	//CFkModel* pModel = new CFkModel();
-	CSBModel* pModel = new CSBModel();
+	
+	CSBModel* pModel = new CSBModel(); // = new CFkModel();
+	//pModel->SetDiffusion(Diffusion + dDiff);
+	//LOG1("SetDiffusion=%.8f", Diffusion + dDiff);
+	//pModel->SetJ(j_var + dj);
+	//LOG1("SetJ=%.5f", j_var + dj);
+	
 	clock_t startingTime;
 	clock_t endingTime;
 	double runningTime = 0.0;
 	
 	LOG("Executing 1st protocol");
 	startingTime = clock();
-	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult1, s1, "/a/home/cc/students/enginer/shaishif/Logs/Output");
+	pModel->ExecuteModel(pCandidate->m_pFibroblastMat, pCandidate->m_pResult1, s1, "/a/home/cc/students/enginer/shaishif/Logs/Output");	
 	SaveMatToFile(pCandidate->m_pResult1, "TestMatResults1.txt");
 	endingTime = clock();
 	runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);	
@@ -721,7 +799,10 @@ void CGA::Test()
 		{
 			ProcessResults(pCandidate);				
 			int nError = CalculateError(pCandidate->m_pFibroblastMat);
-			LOG1("The (geomatric) error for this match is: %d", nError);	
+			LOG1("The (geomatric) error for this match is: %d", nError);
+			
+			double dCoverage = CalculateTargetCoverage(pCandidate->m_pFibroblastMat);
+			LOG1("The target coverage for this match is: %.3f%%", dCoverage);	
 		}
 		else
 		{
@@ -733,11 +814,12 @@ void CGA::Test()
 	delete pCandidate;
 	
 	LOG("----------------------- Test ended -----------------------");
+	
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-
 
 void CreateLogFiles()
 {
@@ -759,7 +841,7 @@ void CreateLogFiles()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define TESTING
+//#define TESTING
 
 int main(int argc, char *argv[])
 {
