@@ -74,23 +74,23 @@ const double S2_begin = 200.0; // milliseconds
 */
 // 3D model
 
-double *Vm;
+//double *Vm;
 double *I_temp;
 
 //out_frame = new (unsigned char) [Save_W*Save_H];
 
 
 
-void Show_Vm_Char(int matrix_f[])
+void Show_Vm_Char(int matrix_f[], state_variables* Node)
 {
-	int i,j,plane_i,plane_j;
-	double VC;
+	//int i,j,plane_i,plane_j;
+	//double VC;
 
-	for (int i = 0; i < H; i += 4)
+	for (int i = 0; i < W; i += 4)
 	{	
-		for (int j = 0; j < W; j += 4)
+		for (int j = 0; j < H; j += 4)
 		{
-			VC = Vm[i*H + j];
+			double VC = Node[i*H + j].V;
 			if (matrix_f[i*H + j]==2)	printf("  ");
 			//else if (matrix_f[i*H+j]==1)	cout << ".";
 			else if (VC < -80.0) printf("88");
@@ -117,7 +117,7 @@ void Show_Vm_Char(int matrix_f[])
 }
 
 /*****************************************************************************/
-
+/*
 int	Save_activity_byte(int frame_number)
 {
 
@@ -125,7 +125,7 @@ int	Save_activity_byte(int frame_number)
 	int i;
 	char file_name[200];
 
-	/* Generating a vector 0-255 of chars */
+	// Generating a vector 0-255 of chars
 
 	sprintf(file_name,out_file_name,frame_number);
 	FILE *pFile;
@@ -148,8 +148,8 @@ int	Save_activity_byte(int frame_number)
 	printf("File %d saved at time %f ms \n",frame_number,sim_time);;
 	return 0;
 }
-
-void SaveToFile(double sim_time)
+*/
+void SaveToFile(double sim_time, state_variables* Node)
 {
 	double sim_time_to_save = floor(sim_time + 0.5);
 	char fileName[1024] = {0};
@@ -160,11 +160,11 @@ void SaveToFile(double sim_time)
 		return;
 	}
 
-	for (int j=0; j<H; j++)
+	for (int i=1; i<W-1; i++)
 	{	
-		for (int i=0; i<W; i++)
+		for (int j=1; j<H-1; j++)
 		{
-			fprintf(pFile, "%4.3f ", Vm[i*H+j]);
+			fprintf(pFile, "%4.3f ", Node[i*H+j].V);
 		}
 		fprintf(pFile, "\n");
 	}	
@@ -188,6 +188,82 @@ const int TargetWidth = 0;
 
 #define INVALID_RISE_TIME	1000.0
 
+void SaveProtFile(double* Stim)
+{
+	char fileName[1024] = {0};
+	sprintf(fileName, "Output\\Protocol%d.txt", Protocol);
+	FILE* pFile = fopen(fileName, "w");
+	if(pFile == NULL)
+	{
+		return;
+	}
+
+	for (int i=0; i<W; i++)	
+	{	
+		for (int j=0; j<H; j++)
+		{
+			fprintf(pFile, "%4.3f ", Stim[i*H+j]);
+		}
+		fprintf(pFile, "\n");
+	}	
+	fclose(pFile);
+}
+
+void SaveTensorToFile(D_tensor_type* D_tensor)
+{
+	char fileName[1024] = {0};
+	sprintf(fileName, "Output\\D_tensor_ii.txt");
+	FILE* pFile = fopen(fileName, "w");
+	if(pFile == NULL)
+	{
+		return;
+	}
+
+	for (int i=0; i<W; i++)	
+	{	
+		for (int j=0; j<H; j++)
+		{
+			fprintf(pFile, "%4.3f ", D_tensor[i*H+j].Dii);
+		}
+		fprintf(pFile, "\n");
+	}	
+	fclose(pFile);
+
+	sprintf(fileName, "Output\\D_tensor_jj.txt");
+	pFile = fopen(fileName, "w");
+	if(pFile == NULL)
+	{
+		return;
+	}
+
+	for (int i=0; i<W; i++)	
+	{	
+		for (int j=0; j<H; j++)
+		{
+			fprintf(pFile, "%4.3f ", D_tensor[i*H+j].Djj);
+		}
+		fprintf(pFile, "\n");
+	}	
+	fclose(pFile);
+
+	sprintf(fileName, "Output\\D_tensor_ij.txt");
+	pFile = fopen(fileName, "w");
+	if(pFile == NULL)
+	{
+		return;
+	}
+
+	for (int i=0; i<W; i++)	
+	{	
+		for (int j=0; j<H; j++)
+		{
+			fprintf(pFile, "%4.3f ", D_tensor[i*H+j].Dij);
+		}
+		fprintf(pFile, "\n");
+	}	
+	fclose(pFile);
+}
+
 int main(int argc, char *argv[])
 {
 	//int i,j;       // dummy int
@@ -198,7 +274,7 @@ int main(int argc, char *argv[])
 	D_tensor_type* D_tensor = (D_tensor_type*) malloc(W*H*sizeof(D_tensor_type));
 	double Diff = 0.04*1.4; // was 0.013
 	int out_file_number=0;
-	Vm = (double*) malloc(W*H*sizeof(double));
+	//Vm = (double*) malloc(W*H*sizeof(double));
 
 	//int fibrosis_matrix[W*H];
 	int* fibrosis_matrix = (int*) malloc(W*H*sizeof(int));
@@ -209,6 +285,7 @@ int main(int argc, char *argv[])
 			fibrosis_matrix[i*H + j] = 0;
 			D_tensor[i*H + j].Dii = Diff;
 			D_tensor[i*H + j].Djj = Diff;
+			D_tensor[i*H + j].Dij = 0.0;
 		}
 	}
 	
@@ -233,6 +310,7 @@ int main(int argc, char *argv[])
 		D_tensor[(iBorder+1)*W - 1].Dii = 0.0;
 		D_tensor[(iBorder+1)*W - 1].Djj = 0.0;
 	}		
+	SaveTensorToFile(D_tensor);
 
 	// Set the fibroblast patch.
 	int m_nCenterH = TargetCenterH;
@@ -297,24 +375,6 @@ int main(int argc, char *argv[])
 		pFile = NULL;
 	}
 	
-	/*
-	// Print the fibroblast mat.
-	FILE* pFile = fopen("Output\\Fibroblasts.txt","w");
-	for (j=0; j<H; j++)
-	{	
-		for (i=0; i<W; i++)
-		{
-			printf("%d", fibrosis_matrix[i*H+j]);
-			fprintf(pFile, "%d", fibrosis_matrix[i*H+j]);
-		}
-		printf("\n");
-		fprintf(pFile, "\n");
-	}
-	printf("\n"); // Separator
-	fprintf(pFile, "\n");
-	fclose(pFile);
-	*/
-
 	fibrosis_name="fibrosis_matrix.txt";
 	state_variables* Node = (state_variables*) malloc(W*H*sizeof(state_variables));
 	state_variables* pNewNode = (state_variables*) malloc(W*H*sizeof(state_variables));
@@ -330,46 +390,7 @@ int main(int argc, char *argv[])
 	//int x,y;
 	double dVm_plus_x, dVm_minus_x, dVm_plus_y, dVm_minus_y;	
 	I_temp = (double*) malloc(W*H*sizeof(double));
-	
-	
-	/*
-	FILE *pFile;
-	pFile=fopen(fibrosis_name,"r");
-	for (i=1; i<=W*H; i++)
-		fscanf(pFile,"%d",&fibrosis_matrix[i-1]);   // 3 - (non boundary cell), 2 - out of tissue (boundary cell), 1 - fibrotic tissue, 0 - regular media
-	fclose(pFile);
-	*/
-
-	// Initialize diffusion tensor for each node, assuming NO FIBROSIS
-
-	/*
-	for (int i = 0; i < W; i++)
-	{
-		for (int j = 0; j < H; j++)
-		{			
-			D_tensor[i*H + j].Dii = DiffW;
-			D_tensor[i*H + j].Djj = DiffH;
-			D_tensor[i*H + j].Dij = 0.0;		
-			
-			if (fibrosis_matrix[i*H + j]==1)
-			{
-				D_tensor[i*H + j].Dii = 0.0026; // Fibers parallel to i coordinate
-				D_tensor[i*H + j].Djj = 0.0026;
-				D_tensor[i*H + j].Dij = 0.0;
-			}
-			
-			
-			if (fibrosis_matrix[i*H + j] != 0)
-			{
-				D_tensor[i*H + j].Dii = 0.0; // Fibers parallel to i coordinate
-				D_tensor[i*H + j].Djj = 0.0;
-				D_tensor[i*H + j].Dij = 0.0;
-			}
-			
-		}
-	}
-	*/
-
+		
 	// Initialize each CPU individually
 	Get_state_variables_initial_condition(); // Put initial conditions in the vector state[...]
 	for (int ij = 0; ij < W*H; ij++)
@@ -384,122 +405,104 @@ int main(int argc, char *argv[])
 		Stim[ij] = 0.0;
 		//Vm[ij] = Vm_init_all;
 	}
-	
+	if(Protocol == 1)
+	{	
+		for (int i = 0; i <= 2; i++)
+			//for (int i = 10; i <= 12; i++)
+		{
+			for (int j = 0; j < H; j++) 
+			{
+				Stim[i*H + j] = S1_amp;
+			}
+		}
+	}				
+	else if(Protocol == 2)
+	{					
+		for (int i = 0; i < W; i++) 
+		{
+			for (int j = 0; j <= 2; j++)
+				//for (int j = 10; j <= 12; j++)
+			{
+				Stim[i*H + j] = S1_amp;
+			}
+		}
+	}
+	SaveProtFile(Stim);
+
+	double bStim = false;
 	// time loop
 	for (sim_time = 0; sim_time < (max_time+time_step); sim_time += time_step)
 	{
-		//if (sim_time <= S2_begin + S2_total_time + time_step) 
-		{			
-			if ((sim_time >= S1_begin) && (sim_time < S1_begin + S1_total_time))
-			{
-				if(Protocol == 1)
-				{	
-					for (int i = 0; i <= 2; i++)
-					//for (int i = 10; i <= 12; i++)
-					{
-						for (int j = 0; j < W; j++) 
-						{
-							Stim[i*H + j] = S1_amp;
-						}
-					}
-				}				
-				else if(Protocol == 2)
-				{					
-					for (int i = 0; i < H; i++) 
-					{
-						for (int j = 0; j <= 2; j++)
-						//for (int j = 10; j <= 12; j++)
-						{
-							Stim[i*H + j] = S1_amp;
-						}
-					}
-				}
-			}
-			/*
-			else
-			{
-				for (j=0; j<H; j++) for (i=0; i<W; i++) 
-					Stim[i*H+j] = 0.0;
-				if (sim_time >= S2_begin)
-				{
-					if (sim_time < S2_begin + S2_total_time)
-						for (j=0; j<H; j++) for (i=50; i<51; i++)  // was 0<i<30 0<H<H
-							Stim[i*H+j] = S2_amp; // First half/quarter/third... stimulation
-					else				
-						for (i=0; i<W; i++) for (j=0; j<H; j++) 
-							Stim[i*H+j] = 0.0; // First half/quarter/third... stimulation zeroing			
-				}
-			}
-			*/
-		} // of (sim_time <= S2_begin + S2_total_time)
+		bStim = ((sim_time >= S1_begin) && (sim_time < S1_begin + S1_total_time));
+	
+		if (sim_time >= time_to_send)
+		{
+			printf("Time: %.2f\n", sim_time);						
+			SaveToFile(sim_time, Node);
+			Show_Vm_Char(fibrosis_matrix, Node);
+			time_to_send += send_period;
+		}
 
 		for (int x = 0; x < W; x++) 
 		{
 			for (int y = 0; y < H; y++)
 			{
-				if (fibrosis_matrix[x*H+y] == 0)
+				int nCurIndex = x*H+y;
+				if (fibrosis_matrix[nCurIndex] == 0)
 				{
-					dVm_plus_x=(2.0*D_tensor[x*H+y].Dii*D_tensor[(x+1)*H+y].Dii/(D_tensor[x*H+y].Dii+D_tensor[(x+1)*H+y].Dii))*(Node[(x+1)*H+y].V-Node[x*H+y].V)/dW;
-					dVm_plus_x+=((D_tensor[x*H+y].Dij*D_tensor[(x+1)*H+y].Dii+D_tensor[x*H+y].Dii*D_tensor[(x+1)*H+y].Dij)/(D_tensor[x*H+y].Dii+D_tensor[(x+1)*H+y].Dii))*(Node[x*H+y+1].V+Node[(x+1)*H+y+1].V-Node[x*H+y-1].V-Node[(x+1)*H+y-1].V)/(4.0*dH);
-					dVm_minus_x=(2.0*D_tensor[(x-1)*H+y].Dii*D_tensor[x*H+y].Dii/(D_tensor[(x-1)*H+y].Dii+D_tensor[x*H+y].Dii))*(Node[x*H+y].V-Node[(x-1)*H+y].V)/dW;
-					dVm_minus_x+=((D_tensor[(x-1)*H+y].Dij*D_tensor[x*H+y].Dii+D_tensor[(x-1)*H+y].Dii*D_tensor[x*H+y].Dij)/(D_tensor[(x-1)*H+y].Dii+D_tensor[x*H+y].Dii))*(Node[x*H+y+1].V+Node[(x-1)*H+y+1].V-Node[x*H+y-1].V-Node[(x-1)*H+y-1].V)/(4.0*dH);
-					dVm_plus_y=(2.0*D_tensor[x*H+y].Djj*D_tensor[x*H+y+1].Djj/(D_tensor[x*H+y].Djj+D_tensor[x*H+y+1].Djj))*(Node[x*H+y+1].V-Node[x*H+y].V)/dH;
-					dVm_plus_y+=((D_tensor[x*H+y].Dij*D_tensor[x*H+y+1].Djj+D_tensor[x*H+y].Djj*D_tensor[x*H+y+1].Dij)/(D_tensor[x*H+y].Djj+D_tensor[x*H+y+1].Djj))*(Node[(x+1)*H+y].V+Node[(x+1)*H+y+1].V-Node[(x-1)*H+y].V-Node[(x-1)*H+y+1].V)/(4.0*dW);
-					dVm_minus_y=(2.0*D_tensor[x*H+y-1].Djj*D_tensor[x*H+y].Djj/(D_tensor[x*H+y-1].Djj+D_tensor[x*H+y].Djj))*(Node[x*H+y].V-Node[x*H+y-1].V)/dH;
-					dVm_minus_y+=((D_tensor[x*H+y-1].Dij*D_tensor[x*H+y].Djj+D_tensor[x*H+y-1].Djj*D_tensor[x*H+y].Dij)/(D_tensor[x*H+y-1].Djj+D_tensor[x*H+y].Djj))*(Node[(x+1)*H+y].V+Node[(x+1)*H+y-1].V-Node[(x-1)*H+y].V-Node[(x-1)*H+y-1].V)/(4.0*dW);
-					dVm[x*H+y]=((dVm_plus_x-dVm_minus_x)*dH+(dVm_plus_y-dVm_minus_y)*dW)/(dW*dH);
-				}
-			}
-		}
-		
-		
-		for (int ij = 0; ij < W*H; ij++)
-		{
-			if (fibrosis_matrix[ij] == 0)			// Myocyte
-			{
-				I_temp[ij] = Total_transmembrane_currents(pNewNode[ij], Stim[ij]);
-				pNewNode[ij].V = Node[ij].V + time_step*(dVm[ij] - I_temp[ij]);
-				I_temp[ij] = I_temp[ij] - Stim[ij];
-				Vm[ij] = pNewNode[ij].V;
-
-				if((Vm[ij] > 0.0) && (outRiseTimeMat[ij] == INVALID_RISE_TIME))
-				{				
-					if(dFirstRiseTime == 0.0)
-					{
-						dFirstRiseTime = sim_time;
+					if((Node[nCurIndex].V > 0.0) && (outRiseTimeMat[nCurIndex] == INVALID_RISE_TIME))
+					{				
+						if(dFirstRiseTime == 0.0)
+						{
+							dFirstRiseTime = sim_time;
+						}
+						outRiseTimeMat[nCurIndex] = sim_time - dFirstRiseTime;
 					}
-					outRiseTimeMat[ij] = sim_time - dFirstRiseTime;
+
+					dVm_plus_x = (2.0*D_tensor[x*H+y].Dii*D_tensor[(x+1)*H+y].Dii/
+						(D_tensor[x*H+y].Dii+D_tensor[(x+1)*H+y].Dii))*(Node[(x+1)*H+y].V-Node[x*H+y].V)/dW;
+					//dVm_plus_x+=((D_tensor[x*H+y].Dij*D_tensor[(x+1)*H+y].Dii + D_tensor[x*H+y].Dii*D_tensor[(x+1)*H+y].Dij)/
+					//	(D_tensor[x*H+y].Dii+D_tensor[(x+1)*H+y].Dii))*(Node[x*H+y+1].V+Node[(x+1)*H+y+1].V-Node[x*H+y-1].V-Node[(x+1)*H+y-1].V)/(4.0*dH);
+					dVm_minus_x = (2.0*D_tensor[(x-1)*H+y].Dii*D_tensor[x*H+y].Dii/
+						(D_tensor[(x-1)*H+y].Dii + D_tensor[x*H+y].Dii))*(Node[x*H+y].V-Node[(x-1)*H+y].V)/dW;
+					//dVm_minus_x+=((D_tensor[(x-1)*H+y].Dij*D_tensor[x*H+y].Dii + D_tensor[(x-1)*H+y].Dii*D_tensor[x*H+y].Dij)/
+					//	(D_tensor[(x-1)*H+y].Dii+D_tensor[x*H+y].Dii))*(Node[x*H+y+1].V+Node[(x-1)*H+y+1].V-Node[x*H+y-1].V-Node[(x-1)*H+y-1].V)/(4.0*dH);
+					
+					dVm_plus_y = (2.0*D_tensor[x*H+y].Djj*D_tensor[x*H+y+1].Djj/
+						(D_tensor[x*H+y].Djj+D_tensor[x*H+y+1].Djj))*(Node[x*H+y+1].V-Node[x*H+y].V)/dH;
+					//dVm_plus_y+=((D_tensor[x*H+y].Dij*D_tensor[x*H+y+1].Djj + D_tensor[x*H+y].Djj*D_tensor[x*H+y+1].Dij)/
+					//	(D_tensor[x*H+y].Djj+D_tensor[x*H+y+1].Djj))*(Node[(x+1)*H+y].V+Node[(x+1)*H+y+1].V-Node[(x-1)*H+y].V-Node[(x-1)*H+y+1].V)/(4.0*dW);
+					dVm_minus_y = (2.0*D_tensor[x*H+y-1].Djj*D_tensor[x*H+y].Djj/
+						(D_tensor[x*H+y-1].Djj + D_tensor[x*H+y].Djj))*(Node[x*H+y].V-Node[x*H+y-1].V)/dH;
+					//dVm_minus_y+=((D_tensor[x*H+y-1].Dij*D_tensor[x*H+y].Djj + D_tensor[x*H+y-1].Djj*D_tensor[x*H+y].Dij)/
+					//	(D_tensor[x*H+y-1].Djj+D_tensor[x*H+y].Djj))*(Node[(x+1)*H+y].V+Node[(x+1)*H+y-1].V-Node[(x-1)*H+y].V-Node[(x-1)*H+y-1].V)/(4.0*dW);
+					
+					dVm[x*H+y]=((dVm_plus_x-dVm_minus_x)*dH+(dVm_plus_y-dVm_minus_y)*dW)/(dW*dH);
+
+					double dStim = bStim ? Stim[nCurIndex] : 0.0;
+					I_temp[nCurIndex] = Total_transmembrane_currents(Node[nCurIndex], pNewNode[nCurIndex], dStim);
+					pNewNode[nCurIndex].V = Node[nCurIndex].V + time_step*(dVm[nCurIndex] - I_temp[nCurIndex]);
+					I_temp[nCurIndex] = I_temp[nCurIndex] - dStim;
+					//Vm[nCurIndex] = pNewNode[nCurIndex].V;
+
+					/*
+					if(x == 1)
+					{
+						if(y == 1 || y == H-2)
+						{
+							printf("x=%d, y=%d: New.V=%4.3f, dVm=%4.3f, I=%4.3f, Stim=%4.3f\n", x, y, pNewNode[nCurIndex].V, dVm[x*H+y], I_temp[nCurIndex], dStim);
+						}
+					}
+					*/
 				}
-			}			
-			/*
-			else if (fibrosis_matrix[ij]==1)	// Fibroblast
-			{
-				if (Node[ij].V>=-20.0)
-					Node[ij].V += time_step*(dVm[ij] - 0.001*Cm_fibro_factor_low*(Node[ij].V-Vrm_fibro));
-				else
-					Node[ij].V += time_step*(dVm[ij] - 0.001*Cm_fibro_factor_high*(Node[ij].V-Vrm_fibro));
 			}
-			*/			
 		}
-
-		if (sim_time >= time_to_send)
-		{
-			printf("Time: %.2f\n", sim_time);
-			time_to_send += send_period;
-			//Save_activity_byte(out_file_number);
-			
-			// SHAISH: comment this out for now.
-			SaveToFile(sim_time);
-			out_file_number += 1;
-			Show_Vm_Char(fibrosis_matrix);  // sending fibrosis_matrix for knowing which of the voxels are outside tissue
-		}
-
-		
+						
 		bool bStopSim = true;
 		if(Protocol == 1)
 		{
-			int i = (H-2);
-			for (int j = 1; j < W-1; j++) 
+			int i = (W-2);
+			for (int j = 1; j < H-1; j++) 
 			{							
 				if(outRiseTimeMat[i*H + j] == INVALID_RISE_TIME)
 				{
@@ -510,9 +513,9 @@ int main(int argc, char *argv[])
 		}
 		else if(Protocol == 2)
 		{
-			for (int i = 1; i < H-1; i++)
+			for (int i = 1; i < W-1; i++)
 			{			
-				int j = W-2;
+				int j = H-2;
 				if(outRiseTimeMat[i*H + j] == INVALID_RISE_TIME)
 				{
 					bStopSim = false;
@@ -540,9 +543,9 @@ int main(int argc, char *argv[])
 	FILE* pFibroBlastFile = fopen(targetFilename, "w");
 	if(pFibroBlastFile != NULL)
 	{		
-		for (int i = 1; i < H-1; i++)
+		for (int i = 1; i < W-1; i++)
 		{	
-			for (int j = 1; j < W-1; j++)
+			for (int j = 1; j < H-1; j++)
 			{
 				fprintf(pFibroBlastFile, "%.3f ", outRiseTimeMat[i*H + j]);
 			}

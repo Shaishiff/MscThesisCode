@@ -137,7 +137,39 @@ rN.w = state[20];
 
 /*********************************************************************/
 
-double	Total_transmembrane_currents(state_variables &rN, double &Ist)
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+/***************************
+* Schraudolph's algorithm: *
+***************************/
+static union
+{
+	double d;
+	struct
+	{
+		int j, i; // #ifdef LITTLE_ENDIAN
+	} n;
+} _eco;
+
+#define EXP_A (1048576/M_LN2)	/* 2^20/LN(2) use 1512775 for integer version */
+#define EXP_C 60801	 /* see text for choice of c values */
+#define EXP(y) (_eco.n.i = EXP_A*(y) + (1072693248 - EXP_C), _eco.d)
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+#if 0
+#define shaisExp(in_var) EXP(in_var)
+#else 
+#define shaisExp(in_var) exp(in_var)
+#endif
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+
+double	Total_transmembrane_currents(const state_variables &rN, state_variables &outN, double &Ist)
 {
 
 
@@ -148,9 +180,9 @@ Eca = RTF*0.5*log(Cao/rN.Cai);
 /* update currents */
 Ina = gna*rN.m*rN.m*rN.m*rN.h*rN.j*(rN.V-Ena);
 
-Ik1 = gk1*(rN.V-Ek)/(1+exp(0.07*(rN.V+80.0)));
+Ik1 = gk1*(rN.V-Ek)/(1+shaisExp(0.07*(rN.V+80.0)));
 
-/* FOR Kir2.3: Ik1 = gk1*(rN.V-Ek)/(1+exp(0.07*(rN.V+80.0))) + 15.0/(1+exp((rN.V+40.0)/-7.0)); */
+/* FOR Kir2.3: Ik1 = gk1*(rN.V-Ek)/(1+shaisExp(0.07*(rN.V+80.0))) + 15.0/(1+exp((rN.V+40.0)/-7.0)); */
 
 Ito = gto*rN.sa*rN.sa*rN.sa*rN.si*(rN.V-Ek);
 Ikur = gkur*rN.ua*rN.ua*rN.ua*rN.ui*(rN.V-Ek);
@@ -174,8 +206,6 @@ Iupleak = rN.Caup*Iupmax/Caupmax;
 // ach1 =  10.0/(1.0 + 9.13652/(pow(Ach,0.477811)));  Calculated in declaration area and includes gkach
 ach2 = (0.0517 + 0.4516/(1.0 + exp((rN.V+59.53)/17.18)));	// for [ACH]=1uM only!  Kneller 2002
  
-
-
 
 Ikach = 0.0;//ach1*ach2*(rN.V-Ek); // gkach is included in ach1
 
@@ -275,29 +305,29 @@ infw = 1.0 - 1.0/(1.0 + exp(-1.0*(rN.V-40.0)/17.0));
 
 
 /* update differential equations */
-rN.Nai += dt*( (-3.0*Inak - 3.0*Inaca - Ibna - Ina)/(F*Vi) );
-rN.Ki += dt*( (2.0*Inak-Ik1-Ito-Ikur-Ikr-Iks-Ist)/(F*Vi) );
+outN.Nai += dt*( (-3.0*Inak - 3.0*Inaca - Ibna - Ina)/(F*Vi) );
+outN.Ki += dt*( (2.0*Inak-Ik1-Ito-Ikur-Ikr-Iks-Ist)/(F*Vi) );
 B1 = (2.0*Inaca - Ipca - Ical - Ibca)/(2.0*F*Vi) + (Vup*(Iupleak-Iup) + Irel*Vrel)/Vi;
 B2 = 1.0 + Trpnmax*KmTrpn/((rN.Cai +KmTrpn)*(rN.Cai +KmTrpn)) + Cmdnmax*KmCmdn/((rN.Cai+KmCmdn)*(rN.Cai+KmCmdn));
-rN.Cai += dt*(B1/B2);
-rN.Caup += dt*(Iup-Iupleak - Itr*Vrel/Vup);
-rN.Carel += dt*( (Itr-Irel)*(1.0/(1.0 + (Csqnmax*KmCsqn)/((rN.Carel+KmCsqn)*(rN.Carel+KmCsqn)))));
+outN.Cai += dt*(B1/B2);
+outN.Caup += dt*(Iup-Iupleak - Itr*Vrel/Vup);
+outN.Carel += dt*( (Itr-Irel)*(1.0/(1.0 + (Csqnmax*KmCsqn)/((rN.Carel+KmCsqn)*(rN.Carel+KmCsqn)))));
 
-rN.m += dt*(infm - rN.m)/taum;
-rN.h += dt*(infh - rN.h)/tauh;
-rN.j += dt*(infj - rN.j)/tauj;
-rN.sa += dt*(infsa - rN.sa)/tausa;
-rN.si += dt*(infsi - rN.si)/tausi;
-rN.ua += dt*(infua - rN.ua)/tauua;
-rN.ui += dt*(infui - rN.ui)/tauui;
-rN.xr += dt*(infxr - rN.xr)/tauxr;
-rN.xs += dt*(infxs - rN.xs)/tauxs;
-rN.d += dt*(infd - rN.d)/taud;
-rN.f += dt*(inff - rN.f)/tauf;
-rN.fca += dt*(inffca - rN.fca)/taufca;
-rN.u += dt*(infu - rN.u)/tauu;
-rN.v += dt*(infv - rN.v)/tauv;
-rN.w += dt*(infw - rN.w)/tauw;
+outN.m += dt*(infm - rN.m)/taum;
+outN.h += dt*(infh - rN.h)/tauh;
+outN.j += dt*(infj - rN.j)/tauj;
+outN.sa += dt*(infsa - rN.sa)/tausa;
+outN.si += dt*(infsi - rN.si)/tausi;
+outN.ua += dt*(infua - rN.ua)/tauua;
+outN.ui += dt*(infui - rN.ui)/tauui;
+outN.xr += dt*(infxr - rN.xr)/tauxr;
+outN.xs += dt*(infxs - rN.xs)/tauxs;
+outN.d += dt*(infd - rN.d)/taud;
+outN.f += dt*(inff - rN.f)/tauf;
+outN.fca += dt*(inffca - rN.fca)/taufca;
+outN.u += dt*(infu - rN.u)/tauu;
+outN.v += dt*(infv - rN.v)/tauv;
+outN.w += dt*(infw - rN.w)/tauw;
 
 
 /* rN.V += dt*-1.0*Iion/Cm; UPDATED IN THE MAIN PROGRAM TO INCLUDE COUPLING CURRENTS */
