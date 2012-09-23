@@ -114,8 +114,6 @@ void CSBModel::CalculateDer(int iH, int iW, double** inFibroblastMat)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define EPSILON	double(0.000001)
-
 /***************************
 * Schraudolph's algorithm: *
 ***************************/
@@ -132,43 +130,27 @@ static union
 #define EXP_C 60801	 /* see text for choice of c values */
 #define EXP(y) (_eco.n.i = EXP_A*(y) + (1072693248 - EXP_C), _eco.d)
 
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 #if 1
 #define shaisExp(in_var) EXP(in_var)
-/*
-double shaisExp(double in_var)
-{
-#define N 6.0
-	double dRet = 1.0 + in_var;
-	double dMul = 1.0;
-	double dPow = in_var;
-	for(double iN = 2.0; iN <= N; iN += 1.0)
-	{
-		dMul = dMul*iN;
-		dPow = dPow*in_var;
-		dRet += dPow/dMul;
-	}
-	return dRet;
-	//return (1.0 + in_var + (in_var*in_var)/2.0 + (in_var*in_var*in_var)/6.0);
-	//return exp(in_var);
-}
-*/
 #else 
 #define shaisExp(in_var) exp(in_var)
 #endif
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
 bool heavySide(double in_var)
 {
 	if(in_var > 0.0)
         return true;
     else return false;
-/*
-    if(in_var > 0.0)
-        return 1.0;
-    else if (in_var < 0.0) 
-        return 0.0;
-    else return 0.5;
-	*/
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
 double calc_alpha_h(double V)
 {
@@ -176,17 +158,22 @@ double calc_alpha_h(double V)
     return 0.135*shaisExp(-(V+80.0)/6.8);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 double calc_alpha_m(double V)
 {
 	double dividend = 0.32*(V+47.13);
 	double divisor = 1.0-shaisExp(-0.1*(V+47.13));
 	if(fabs(divisor) < EPSILON) 
 	{
-		//printf("EPSILON for %.6f where dividend= %.6f and divisor=%.6f\n", V, dividend, divisor);
 		divisor = EPSILON;
 	}
     return dividend/divisor;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
 double calc_beta_h(double V)
 {
@@ -201,8 +188,10 @@ double calc_beta_h(double V)
 		dRet += (1.0/(0.13*(1.0+shaisExp(-(V+10.66)/11.1))));
 	}
 	return dRet;
-    //return (3.56*shaisExp(0.079*V) + 3.1*100000.0*shaisExp(0.35*V))*heavySide(-V-40.0) + heavySide(V+40.0)*(1.0/(0.13*(1.0+shaisExp(-(V+10.66)/11.1))));
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
 double calc_beta_m(double V)
 {
