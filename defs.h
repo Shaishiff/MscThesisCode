@@ -46,13 +46,13 @@ const int MPI_RESULT_TAG = 4000;
 // Space parameters
 #define dW 0.01 // cm/node
 #define dH 0.01 // cm/node
-#define W 1.2 // Width, x[cm]
-#define H 1.2 // Height, y[cm]
+#define W 1.4 // Width, x[cm]
+#define H 1.4 // Height, y[cm]
 const int Nw = (int)ceil(W/dW); // In indexes
 const int Nh = (int)ceil(H/dH); // In indexes
 #define Nw_with_border (Nw+2)
 #define Nh_with_border (Nh+2)
-#define MeasurementMarginIndexes 10
+#define MeasurementMarginIndexes 20
 #define Min_w_Fibroblast (MeasurementMarginIndexes + 1)
 #define Min_h_Fibroblast (MeasurementMarginIndexes + 1)
 #define Max_w_Fibroblast (Nw - (MeasurementMarginIndexes + 1))
@@ -60,7 +60,7 @@ const int Nh = (int)ceil(H/dH); // In indexes
 
 // Time parameters:
 const double dt = 0.005; // millisec
-const double MaxSimulationTime = 100.0; // Total time of simulation
+const double MaxSimulationTime = 400.0; // Total time of simulation
 const int Nt = (int)(ceil(MaxSimulationTime/dt));
 
 //////////////////////////////////////////////////////////////////////////////////////////

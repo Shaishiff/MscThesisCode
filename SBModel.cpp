@@ -11,6 +11,8 @@
 
 CSBModel::CSBModel()
 {
+	m_dDiffusion = Diffusion;
+	m_dj = j_var;
 	dVdh = 0.0;
 	dVdw = 0.0;
 	dW2 = dW*dW;
@@ -252,9 +254,9 @@ void CSBModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 		}
 		
 		// Start the spatial loop.
-		for (int iH = 1; iH < Nh+1; ++iH)
+		for (int iW = 1; iW < Nw+1; ++iW)		
 		{
-			for (int iW = 1; iW < Nw+1; ++iW)
+			for (int iH = 1; iH < Nh+1; ++iH)
 			{            
 				if(inFibroblastMat[iH][iW] != 1)
 				{										
@@ -263,12 +265,10 @@ void CSBModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 					double Jstim = 0.0;
 					if(bS1)
 					{
-						double curH = iH*dH;
-						double curW = iW*dW;
-						if(curH >= protParams.m_hStart &&
-						   curH <= protParams.m_hEnd &&
-						   curW >= protParams.m_wStart &&
-						   curW <= protParams.m_wEnd)
+						if(iH >= protParams.m_hStart &&
+						   iH <= protParams.m_hEnd &&
+						   iW >= protParams.m_wStart &&
+						   iW <= protParams.m_wEnd)
 						{
 							Jstim = S1Amp*100.0;
 						}
@@ -303,7 +303,7 @@ void CSBModel::ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, c
 					// h = s
 					// m = f					
 					// Calculate the ODEs.
-					new_mat[iH][iW] = mat[iH][iW] + dt*(Diffusion*(dVdh + dVdw) + I_na*j_var*s*(f*f*f) + Jstim);
+					new_mat[iH][iW] = mat[iH][iW] + dt*(m_dDiffusion*(dVdh + dVdw) + I_na*m_dj*s*(f*f*f) + Jstim);
 					new_s_mat[iH][iW] = dt*((heavySide(V_h-v)-s)/tau_h) + s;
 					new_f_mat[iH][iW] = dt*((heavySide(v-V_m)-f)/tau_m) + f;
 									

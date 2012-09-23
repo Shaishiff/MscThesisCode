@@ -31,8 +31,8 @@ double sim_time = 0.0; // Used locally/independently in MASTER and Workers
 //const double Height = 10.0; //28.0; // mm
 const double dW = 0.1; // mm/node
 const double dH = 0.1; // mm/node
-const int W = 122; //210; // = Width/dW; // Width, x
-const int H = 122; //560; // = Height/dH; // Height, y
+const int W = 142; //210; // = Width/dW; // Width, x
+const int H = 142; //560; // = Height/dH; // Height, y
 
 // Reaction - Diffusion details
 // const double Cm = (double) 100.0e-12;
@@ -53,17 +53,19 @@ struct D_tensor_type
 
 // Fibrosis parameters
 
+/*
 const double Rm_fibro_low = (double) 5.0e+09; // Ohm Kamkin A. Experimental Physiology 1999
 const double Rm_fibro_high = (double) 25.0e+09; // Ohm Kamkin A. Experimental Physiology 1999
 const double Cm_fibro_factor_low = (double) 1.0/((double) Rm_fibro_low*Cm);
 const double Cm_fibro_factor_high = (double) 1.0/((double) Rm_fibro_high*Cm);
 const double Vrm_fibro = (double) -15.9; // mV Kamkin A. Experimental Physiology 1999
+*/
 
 // Stimulation parameters
 //const double S1_amp = -142.4;//3.0752 -100.0;//-100*Cm; // pA
 const double S1_amp = -100.0;//3.0752 -100.0;//-100*Cm; // pA
 const double S1_total_time = 5.0; // 50.0 milliseconds
-const double S1_begin = 25.0; // milliseconds
+const double S1_begin = 10.0; // milliseconds
 
 /*
 const double S2_amp = 0.0;//-100.0;//-3000.0;//-3000.0; //-80.0*Cm; // pA
@@ -172,7 +174,6 @@ void SaveToFile(double sim_time)
 /*****************************************************************************/
 
 const int Protocol = 1; // Can be either 1 or 2
-
 /*
 const int TargetCenterH = 50;
 const int TargetCenterW = 40;
@@ -191,24 +192,49 @@ int main(int argc, char *argv[])
 {
 	//int i,j;       // dummy int
 	char * fibrosis_name;
-	int fibrosis_matrix[W*H];
+	//double DiffW = 0.04*1.4; // was 0.013
+	//double DiffH = 0.04*1.4; // was 0.013
+	//D_tensor_type D_tensor[W*H];
+	D_tensor_type* D_tensor = (D_tensor_type*) malloc(W*H*sizeof(D_tensor_type));
+	double Diff = 0.04*1.4; // was 0.013
+	int out_file_number=0;
+	Vm = (double*) malloc(W*H*sizeof(double));
+
+	//int fibrosis_matrix[W*H];
+	int* fibrosis_matrix = (int*) malloc(W*H*sizeof(int));
 	for (int i = 0; i < W; i++)
 	{
 		for (int j = 0; j < H; j++)
 		{
 			fibrosis_matrix[i*H + j] = 0;
+			D_tensor[i*H + j].Dii = Diff;
+			D_tensor[i*H + j].Djj = Diff;
 		}
-	}	
+	}
+	
+	// Set the borders
 	for(int iBorder = 0; iBorder < W; ++iBorder)
 	{
 		fibrosis_matrix[iBorder] = 2;
 		fibrosis_matrix[(H-1)*W + iBorder] = 2;
+
+		D_tensor[iBorder].Dii = 0.0;
+		D_tensor[iBorder].Djj = 0.0;
+		D_tensor[(H-1)*W + iBorder].Dii = 0.0;
+		D_tensor[(H-1)*W + iBorder].Djj = 0.0;
 	}
 	for(int iBorder = 0; iBorder < H; ++iBorder)
 	{
 		fibrosis_matrix[iBorder*W] = 2;
 		fibrosis_matrix[(iBorder+1)*W - 1] = 2;
+
+		D_tensor[iBorder*W].Dii = 0.0;
+		D_tensor[iBorder*W].Djj = 0.0;
+		D_tensor[(iBorder+1)*W - 1].Dii = 0.0;
+		D_tensor[(iBorder+1)*W - 1].Djj = 0.0;
 	}		
+
+	// Set the fibroblast patch.
 	int m_nCenterH = TargetCenterH;
 	int m_nCenterW = TargetCenterW;
 	int m_nHeight = TargetHeight;
@@ -222,10 +248,14 @@ int main(int argc, char *argv[])
 		for (int iW = nwStart; iW < nwEnd; ++iW)
 		{
 			fibrosis_matrix[iH*H + iW] = 2;
+			D_tensor[iH*H + iW].Dii = 0.0;
+			D_tensor[iH*H + iW].Djj = 0.0;
 		}
 	}
 	
-	double outRiseTimeMat[W*H] = {0.0};
+	//double outRiseTimeMat[W*H] = {0.0};
+	double* outRiseTimeMat = (double*) malloc(W*H*sizeof(double));
+
 	for (int i = 0; i < W; i++)
 	{
 		for (int j = 0; j < H; j++)
@@ -287,17 +317,18 @@ int main(int argc, char *argv[])
 
 	fibrosis_name="fibrosis_matrix.txt";
 	state_variables* Node = (state_variables*) malloc(W*H*sizeof(state_variables));
+	state_variables* pNewNode = (state_variables*) malloc(W*H*sizeof(state_variables));
+	state_variables* pTempNode = NULL;
 	double dFirstRiseTime = 0.0;
-	double dVm[W*H] = {0};
-	double Stim[W*H] = {0};
-	D_tensor_type D_tensor[W*H];
+	
+	//double dVm[W*H] = {0};
+	//double Stim[W*H] = {0};
+	double* dVm = (double*) malloc(W*H*sizeof(double));
+	double* Stim = (double*) malloc(W*H*sizeof(double));
+	
 	double Vm_init_all;
 	//int x,y;
-	double dVm_plus_x, dVm_minus_x, dVm_plus_y, dVm_minus_y;
-	double DiffW = 0.04*1.4; // was 0.013
-	double DiffH = 0.04*1.4; // was 0.013
-	int out_file_number=0;
-	Vm = (double*) malloc(W*H*sizeof(double));
+	double dVm_plus_x, dVm_minus_x, dVm_plus_y, dVm_minus_y;	
 	I_temp = (double*) malloc(W*H*sizeof(double));
 	
 	
@@ -311,10 +342,11 @@ int main(int argc, char *argv[])
 
 	// Initialize diffusion tensor for each node, assuming NO FIBROSIS
 
+	/*
 	for (int i = 0; i < W; i++)
 	{
 		for (int j = 0; j < H; j++)
-		{
+		{			
 			D_tensor[i*H + j].Dii = DiffW;
 			D_tensor[i*H + j].Djj = DiffH;
 			D_tensor[i*H + j].Dij = 0.0;		
@@ -336,18 +368,21 @@ int main(int argc, char *argv[])
 			
 		}
 	}
+	*/
 
 	// Initialize each CPU individually
 	Get_state_variables_initial_condition(); // Put initial conditions in the vector state[...]
 	for (int ij = 0; ij < W*H; ij++)
 	{
 		Assign_node_initial_condition(Node[ij]);
+		Assign_node_initial_condition(pNewNode[ij]);		
 	}
-	Vm_init_all = Node[0].V; // Just take Vm from one of the nodes
+
+	//Vm_init_all = Node[0].V; // Just take Vm from one of the nodes
 	for (int ij = 0; ij < W*H; ij++)
 	{
 		Stim[ij] = 0.0;
-		Vm[ij] = Vm_init_all;
+		//Vm[ij] = Vm_init_all;
 	}
 	
 	// time loop
@@ -359,8 +394,8 @@ int main(int argc, char *argv[])
 			{
 				if(Protocol == 1)
 				{	
-					//for (int i = 0; i <= 2; i++)
-					for (int i = 10; i <= 12; i++)
+					for (int i = 0; i <= 2; i++)
+					//for (int i = 10; i <= 12; i++)
 					{
 						for (int j = 0; j < W; j++) 
 						{
@@ -372,8 +407,8 @@ int main(int argc, char *argv[])
 				{					
 					for (int i = 0; i < H; i++) 
 					{
-						//for (int j = 0; j <= 2; j++)
-						for (int j = 10; j <= 12; j++)
+						for (int j = 0; j <= 2; j++)
+						//for (int j = 10; j <= 12; j++)
 						{
 							Stim[i*H + j] = S1_amp;
 						}
@@ -402,7 +437,7 @@ int main(int argc, char *argv[])
 		{
 			for (int y = 0; y < H; y++)
 			{
-				if (fibrosis_matrix[x*H+y] != 2)
+				if (fibrosis_matrix[x*H+y] == 0)
 				{
 					dVm_plus_x=(2.0*D_tensor[x*H+y].Dii*D_tensor[(x+1)*H+y].Dii/(D_tensor[x*H+y].Dii+D_tensor[(x+1)*H+y].Dii))*(Node[(x+1)*H+y].V-Node[x*H+y].V)/dW;
 					dVm_plus_x+=((D_tensor[x*H+y].Dij*D_tensor[(x+1)*H+y].Dii+D_tensor[x*H+y].Dii*D_tensor[(x+1)*H+y].Dij)/(D_tensor[x*H+y].Dii+D_tensor[(x+1)*H+y].Dii))*(Node[x*H+y+1].V+Node[(x+1)*H+y+1].V-Node[x*H+y-1].V-Node[(x+1)*H+y-1].V)/(4.0*dH);
@@ -420,29 +455,31 @@ int main(int argc, char *argv[])
 		
 		for (int ij = 0; ij < W*H; ij++)
 		{
-			if (fibrosis_matrix[ij]==0)			// Myocyte
+			if (fibrosis_matrix[ij] == 0)			// Myocyte
 			{
-				I_temp[ij]=Total_transmembrane_currents(Node[ij], Stim[ij]);
-				Node[ij].V += time_step*(dVm[ij] - I_temp[ij]);
-				I_temp[ij]=I_temp[ij]-Stim[ij];
+				I_temp[ij] = Total_transmembrane_currents(pNewNode[ij], Stim[ij]);
+				pNewNode[ij].V = Node[ij].V + time_step*(dVm[ij] - I_temp[ij]);
+				I_temp[ij] = I_temp[ij] - Stim[ij];
+				Vm[ij] = pNewNode[ij].V;
+
+				if((Vm[ij] > 0.0) && (outRiseTimeMat[ij] == INVALID_RISE_TIME))
+				{				
+					if(dFirstRiseTime == 0.0)
+					{
+						dFirstRiseTime = sim_time;
+					}
+					outRiseTimeMat[ij] = sim_time - dFirstRiseTime;
+				}
 			}			
+			/*
 			else if (fibrosis_matrix[ij]==1)	// Fibroblast
 			{
 				if (Node[ij].V>=-20.0)
 					Node[ij].V += time_step*(dVm[ij] - 0.001*Cm_fibro_factor_low*(Node[ij].V-Vrm_fibro));
 				else
 					Node[ij].V += time_step*(dVm[ij] - 0.001*Cm_fibro_factor_high*(Node[ij].V-Vrm_fibro));
-			}			
-			Vm[ij] = Node[ij].V;
-
-			if((Vm[ij] > 0.0) && (outRiseTimeMat[ij] == INVALID_RISE_TIME))
-			{				
-				if(dFirstRiseTime == 0.0)
-				{
-					dFirstRiseTime = sim_time;
-				}
-				outRiseTimeMat[ij] = sim_time - dFirstRiseTime;
 			}
+			*/			
 		}
 
 		if (sim_time >= time_to_send)
@@ -491,6 +528,11 @@ int main(int argc, char *argv[])
 		{
 			break;
 		}		
+
+		pTempNode = Node;
+		Node = pNewNode;
+		pNewNode = Node;
+
 	} // sim_time loop
 
 	char targetFilename[1024] = {0};

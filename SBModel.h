@@ -13,7 +13,9 @@ public:
 	CSBModel();
 	virtual ~CSBModel();
 	void ExecuteModel(double** inFibroblastMat, double** outRiseTimeMat, const ProtocolParams& protParams, char* outputFolder = NULL);
-
+	void SetDiffusion(double dDiffusion) {m_dDiffusion = dDiffusion;}
+	void SetJ(double j) {m_dj = j;}
+	
 private:
 	void InitModel();
 	void DeleteModel();
@@ -21,6 +23,8 @@ private:
 	void CalculateDer(int iH, int iW, double** inFibroblastMat);	
 
 private:
+	double m_dDiffusion;
+	double m_dj;
 	double dVdh;
 	double dVdw;
 	double dW2;
