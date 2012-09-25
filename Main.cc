@@ -10,7 +10,7 @@
 
 // Time parameters
 #define SAVE_OUTPUT_PERIOD 1.0 // milliseconds - For collecting the data from Workers to MASTER for saving - Make equal to save_period !!!
-#define MAX_SIMULATION_TIME 50.0 // milliseconds - Total time of simulation
+#define MAX_SIMULATION_TIME 450.0 // milliseconds - Total time of simulation
 #define INVALID_RISE_TIME 1000.0
 #define FIBROBLAST_RISE_TIME (-1.0)
 
@@ -25,7 +25,7 @@
 #define STIMULATION_TOTAL_TIME 2.0 // 50.0 milliseconds
 #define STIMULATION_BEGIN 2.0 // milliseconds
 
-#define PROTOCOL 2
+#define PROTOCOL 1
 
 #if PROTOCOL == 0
 #define STIMULATION_H_START 0
@@ -33,13 +33,13 @@
 #define STIMULATION_W_START 0
 #define STIMULATION_W_END 0
 #else
-#if PROTOCOL == 1
+#if PROTOCOL == 2
 #define STIMULATION_H_START 1
 #define STIMULATION_H_END (H-1)
 #define STIMULATION_W_START 1
 #define STIMULATION_W_END 2
 #else 
-#if PROTOCOL == 2
+#if PROTOCOL == 1
 #define STIMULATION_H_START 1
 #define STIMULATION_H_END 2	
 #define STIMULATION_W_START 1
@@ -72,7 +72,7 @@ struct D_tensor_type
 // Global variables
 double* g_pFibroblastMat = (double*)malloc(W*H*sizeof(double));
 D_tensor_type* g_pTensorMat = (D_tensor_type*)malloc(W*H*sizeof(D_tensor_type));
-state_variables* g_pStateVars = (state_variables*) malloc(W*H*sizeof(state_variables));
+state_variables* g_pStateVars = (state_variables*)malloc(W*H*sizeof(state_variables));
 double* g_pStimulation = (double*)malloc(W*H*sizeof(double));
 double* g_pRiseTimeMat = (double*)malloc(W*H*sizeof(double));
 
@@ -145,7 +145,6 @@ void SaveModelOutputToFile(double sim_time)
 	{	
 		for(int j = 1; j < W-1; j++)
 		{
-			//fprintf(pFile, "%4.3f ", g_pStateVars[i*H + j].V);
 			fprintf(pFile, "%f ", g_pStateVars[i*H + j].V);
 		}
 		fprintf(pFile, "\n");
@@ -184,9 +183,9 @@ void SaveRiseTimeToFile()
 
 void InitStateVars()
 {
-	Get_state_variables_initial_condition(); // Put initial conditions in the vector state[...]
+	ReadStateVariablesInitialConditionFromFile(); // Put initial conditions in the vector state[...]
 	START_LOOP	
-		Assign_node_initial_condition(g_pStateVars[CUR_INDEX]);
+		AssignInitialCondition(g_pStateVars[CUR_INDEX]);
 	END_LOOP	
 }
 
@@ -342,11 +341,9 @@ int main(int argc, char *argv[])
 			bStimulation ? dStimulation = g_pStimulation[CUR_INDEX] : dStimulation = 0.0;
 		if (g_pFibroblastMat[CUR_INDEX] == 0.0)
 		{
-			dIion = Total_transmembrane_currents(g_pStateVars[CUR_INDEX], dStimulation);
+			dIion = CalcTotalTransmembraneCurrents(g_pStateVars[CUR_INDEX], dStimulation);
 			g_pStateVars[CUR_INDEX].V += dt*(dVm[CUR_INDEX] - dIion);
-			//printf("Stim for %d: %f\n", i, Stim[i]);
-			//printf("dVm[i] for %d: %f\n", i, dVm[i]);
-			//printf("Node[i].V for %d: %f\n", i, Node[i].V);
+			
 			if((g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME) && (g_pStateVars[CUR_INDEX].V > 0.0))
 			{				
 				if(dFirstRiseTime == 0.0)
