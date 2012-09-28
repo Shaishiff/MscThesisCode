@@ -13,19 +13,27 @@
 #define MAX_SIMULATION_TIME 450.0 // milliseconds - Total time of simulation
 #define INVALID_RISE_TIME 1000.0
 #define FIBROBLAST_RISE_TIME (-1.0)
+#define RISE_TIME_VM_THRESHOLD (-20.0)
 
 // Fibroblasts
-#define FIBROBLAST_H_START 0
-#define FIBROBLAST_H_END 0
-#define FIBROBLAST_W_START 0
-#define FIBROBLAST_W_END 0
+#define FIBROBLAST_H_START 61
+#define FIBROBLAST_H_END 80
+#define FIBROBLAST_W_START 61
+#define FIBROBLAST_W_END 80
+
+
+// Space parameters
+#define dW 0.01 // mm/node
+#define dH 0.01 // mm/node
+#define W 142
+#define H 142
 
 // Stimulation parameters
-#define STIMULATION_AMP -142.4 //3.0752 -100.0;//-100*Cm; // pA
+#define STIMULATION_AMP (-100.0) //3.0752 -100.0;//-100*Cm; // pA
 #define STIMULATION_TOTAL_TIME 2.0 // 50.0 milliseconds
-#define STIMULATION_BEGIN 2.0 // milliseconds
+#define STIMULATION_BEGIN 5.0 // milliseconds
 
-#define PROTOCOL 1
+#define PROTOCOL 2
 
 #if PROTOCOL == 0
 #define STIMULATION_H_START 0
@@ -33,31 +41,25 @@
 #define STIMULATION_W_START 0
 #define STIMULATION_W_END 0
 #else
-#if PROTOCOL == 2
-#define STIMULATION_H_START 1
-#define STIMULATION_H_END (H-1)
-#define STIMULATION_W_START 1
-#define STIMULATION_W_END 2
-#else 
 #if PROTOCOL == 1
 #define STIMULATION_H_START 1
 #define STIMULATION_H_END 2	
 #define STIMULATION_W_START 1
 #define STIMULATION_W_END (W-1)
+#else 
+#if PROTOCOL == 2
+#define STIMULATION_H_START 1
+#define STIMULATION_H_END (H-1)
+#define STIMULATION_W_START 1
+#define STIMULATION_W_END 2
 #else
 #error PROTOCOL must defined as 0, 1 or 2
 #endif
 #endif
 #endif
 
-// Space parameters
-#define dW 0.1 // mm/node
-#define dH 0.1 // mm/node
-#define W 142
-#define H 142
-
 // Diffusion  parameters
-#define DIFFUSION_COEF 0.056
+#define DIFFUSION_COEF 0.001//0.00056
 struct D_tensor_type
 {
 	D_tensor_type()
@@ -81,12 +83,12 @@ double* g_pRiseTimeMat = (double*)malloc(W*H*sizeof(double));
 
 // Helping macros
 #define START_LOOP \
-	int CUR_INDEX = 0; \
-	for(int i = 0; i < W; i++) \
+int CUR_INDEX = 0; \
+for(int i = 0; i < W; i++) \
 { \
 	for(int j = 0; j < H; j++) \
-{ \
-	CUR_INDEX = i*H + j;
+	{ \
+		CUR_INDEX = i*H + j;
 
 #define END_LOOP } }
 
@@ -95,12 +97,17 @@ double* g_pRiseTimeMat = (double*)malloc(W*H*sizeof(double));
 
 void ShowVmMat()
 {	
-	for(int i = 0; i < W; i += 4)	
+	printf("\n");
+	for(int i = 1; i < W-1; i += 4)	
 	{	
-		for (int j = 0; j < H; j += 4)
+		printf("\t");
+		for (int j = 1; j < H-1; j += 4)
 		{
 			int nCurIndex = i*H + j;
-			if (g_pFibroblastMat[nCurIndex] != 0.0)	printf(" ");
+			if (g_pFibroblastMat[nCurIndex] != 0.0)	
+			{
+				printf("  ");
+			}
 			else
 			{
 				double dVm = g_pStateVars[nCurIndex].V;
@@ -156,6 +163,49 @@ void SaveModelOutputToFile(double sim_time)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+void SaveFibroblastsToFile()
+{
+	char fileName[1024] = {0};
+	sprintf(fileName, "Output\\TargetFibroblastMat.txt");
+	FILE* pFile = fopen(fileName, "w");
+	if(pFile == NULL)
+	{
+		return;
+	}
+
+	for (int i = 0; i < W; i++)
+	{	
+		for (int j = 0; j < H; j++)
+		{
+			fprintf(pFile, "%.3f ", g_pFibroblastMat[i*H + j]);
+		}
+		fprintf(pFile, "\n");
+	}	
+	fclose(pFile);
+	pFile = NULL;
+	
+	sprintf(fileName, "Output\\TargetFibroblastMatReadable.txt");
+	pFile = fopen(fileName, "w");
+	if(pFile == NULL)
+	{
+		return;
+	}
+
+	for (int i = 0; i < W; i++)
+	{	
+		for (int j = 0; j < H; j++)
+		{
+			fprintf(pFile, "%d", (int)g_pFibroblastMat[i*H + j]);
+		}
+		fprintf(pFile, "\n");
+	}	
+	fclose(pFile);
+	pFile = NULL;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 void SaveRiseTimeToFile()
 {
 	char fileName[1024] = {0};
@@ -183,7 +233,7 @@ void SaveRiseTimeToFile()
 
 void InitStateVars()
 {
-	ReadStateVariablesInitialConditionFromFile(); // Put initial conditions in the vector state[...]
+	ReadStateVariablesInitialConditionFromFile();
 	START_LOOP	
 		AssignInitialCondition(g_pStateVars[CUR_INDEX]);
 	END_LOOP	
@@ -252,7 +302,7 @@ void InitTensorMat()
 		{
 			throw;
 		}
-		END_LOOP
+	END_LOOP
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -270,7 +320,7 @@ void InitProtcolMat()
 		{
 			g_pStimulation[CUR_INDEX] = 0.0;
 		}
-		END_LOOP
+	END_LOOP
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -287,7 +337,7 @@ void InitRiseTimeMat()
 		{
 			g_pRiseTimeMat[CUR_INDEX] = FIBROBLAST_RISE_TIME;
 		}		
-		END_LOOP
+	END_LOOP
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -298,6 +348,7 @@ int main(int argc, char *argv[])
 	InitFibroblastMat();
 	CreateFibroblastBorders();
 	CreateFibroblastPatch();
+	SaveFibroblastsToFile();
 	InitStateVars();
 	InitTensorMat();
 	InitProtcolMat();
@@ -316,6 +367,33 @@ int main(int argc, char *argv[])
 	clock_t startingTime = clock();
 	for (double sim_time = 0.0; sim_time < (MAX_SIMULATION_TIME + dt); sim_time += dt) 
 	{	
+		if (sim_time >= dNextTimeToSaveOutput)
+		{
+			clock_t endingTime = clock();
+			double runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);
+			startingTime = clock();
+			dNextTimeToSaveOutput += SAVE_OUTPUT_PERIOD;
+			printf("Vm mat at time: %.2f (duration: %.3f)\n", sim_time, runningTime);
+			ShowVmMat();
+			SaveModelOutputToFile(sim_time);
+
+			bool bStopSim = true;
+			START_LOOP					
+				if (g_pFibroblastMat[CUR_INDEX] == 0.0)
+				{
+					if(g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME)
+					{
+						bStopSim = false;
+						break;
+					}
+				}
+			END_LOOP
+			if(bStopSim)
+			{
+				break;
+			}			
+		}
+
 		bStimulation = ((sim_time >= STIMULATION_BEGIN) && (sim_time < STIMULATION_BEGIN + STIMULATION_TOTAL_TIME));
 
 		for (int x = 0; x < W; x++)
@@ -339,48 +417,21 @@ int main(int argc, char *argv[])
 
 		START_LOOP		
 			bStimulation ? dStimulation = g_pStimulation[CUR_INDEX] : dStimulation = 0.0;
-		if (g_pFibroblastMat[CUR_INDEX] == 0.0)
-		{
-			dIion = CalcTotalTransmembraneCurrents(g_pStateVars[CUR_INDEX], dStimulation);
-			g_pStateVars[CUR_INDEX].V += dt*(dVm[CUR_INDEX] - dIion);
-			
-			if((g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME) && (g_pStateVars[CUR_INDEX].V > 0.0))
-			{				
-				if(dFirstRiseTime == 0.0)
-				{
-					dFirstRiseTime = sim_time;
-				}
-				g_pRiseTimeMat[CUR_INDEX] = sim_time - dFirstRiseTime;
-			}
-		}
-		END_LOOP
-
-			if (sim_time >= dNextTimeToSaveOutput)
+			if (g_pFibroblastMat[CUR_INDEX] == 0.0)
 			{
-				clock_t endingTime = clock();
-				double runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);
-				startingTime = clock();
-				dNextTimeToSaveOutput += SAVE_OUTPUT_PERIOD;
-				printf("Vm mat at time: %.2f (duration: %.3f)\n", sim_time, runningTime);
-				ShowVmMat();
-				SaveModelOutputToFile(sim_time);
-
-				bool bStopSim = true;
-				START_LOOP					
-					if (g_pFibroblastMat[CUR_INDEX] == 0.0)
+				dIion = CalcTotalTransmembraneCurrents(g_pStateVars[CUR_INDEX], dStimulation);
+				g_pStateVars[CUR_INDEX].V += dt*(dVm[CUR_INDEX] - dIion);
+			
+				if((g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME) && (g_pStateVars[CUR_INDEX].V > RISE_TIME_VM_THRESHOLD))
+				{				
+					if(dFirstRiseTime == 0.0)
 					{
-						if(g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME)
-						{
-							bStopSim = false;
-							break;
-						}
+						dFirstRiseTime = sim_time;
 					}
-					END_LOOP
-						if(bStopSim)
-						{
-							break;
-						}			
+					g_pRiseTimeMat[CUR_INDEX] = sim_time - dFirstRiseTime;
+				}
 			}
+		END_LOOP		
 	} // sim_time loop
 
 	SaveRiseTimeToFile();
