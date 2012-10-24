@@ -37,7 +37,7 @@ const int MPI_RESULT_TAG = 4000;
 #define Npop 20
 #define MaxIterations 100
 #define SelectionRate 0.4
-#define NsurvivingPopulation (int)floor(Npop*SelectionRate +0.5)
+#define NsurvivingPopulation (int)floor(Npop*SelectionRate + 0.5)
 #define Nmates (Npop - NsurvivingPopulation)
 #define SAMPLING_INTERVALS	1
 
@@ -62,7 +62,7 @@ const int Nh = (int)ceil(H/dH); // In indexes
 
 // Time parameters:
 const double dt = 0.005; // millisec
-const double MaxSimulationTime = 400.0; // Total time of simulation
+const double MaxSimulationTime = 50.0; // Total time of simulation
 const int Nt = (int)(ceil(MaxSimulationTime/dt));
 
 //////////////////////////////////////////////////////////////////////////////////////////

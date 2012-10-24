@@ -21,7 +21,6 @@
 #define FIBROBLAST_W_START 61
 #define FIBROBLAST_W_END 80
 
-
 // Space parameters
 #define dW 0.01 // mm/node
 #define dH 0.01 // mm/node
@@ -173,9 +172,9 @@ void SaveFibroblastsToFile()
 		return;
 	}
 
-	for (int i = 0; i < W; i++)
+	for (int i = 1; i < W-1; i++)
 	{	
-		for (int j = 0; j < H; j++)
+		for (int j = 1; j < H-1; j++)
 		{
 			fprintf(pFile, "%.3f ", g_pFibroblastMat[i*H + j]);
 		}

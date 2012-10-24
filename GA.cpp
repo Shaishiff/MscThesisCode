@@ -1,21 +1,14 @@
 
 #include "GA.h"
-#include "FkModel.h"
+//#include "FkModel.h"
 #include "SBModel.h"
+#include "SBModelDefs.h"
 #include "Mat.h"
 #include "Log.h"
 
 #include <iostream>
 #include <fstream>
 using namespace std;
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-FILE* pLogFile;
-char strLogSourceName[1024];
-char strLogFileName[1024];
-char strLog[1024];
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -83,14 +76,16 @@ CGA::~CGA()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+#define MAX_FILE_ELEMENT_LENGTH 10
+
 bool ReadIntoArray(ifstream& myfile, double** arr)
 {
 	int iH = 1;
     int iW = 1;
-	char s[10] = {0};
+	char s[MAX_FILE_ELEMENT_LENGTH] = {0};
 	while(!myfile.eof())
     {
-		myfile.getline(s, 10, ' ');
+		myfile.getline(s, MAX_FILE_ELEMENT_LENGTH, ' ');
 		arr[iH][iW] = atof(s);
 		iW++;
 		if(iW == Nw+1)
@@ -130,6 +125,7 @@ bool CGA::ReadTargetMeasurements()
         return false;
 	}
 	myfile.close();
+	SaveMatToFile(m_pTargetFibroblastMat, "ReadTargetFibroblastMat.txt");
 	
 	// Use this mat to read the rise time and then measure on the edges.
 	double** arr = CreateMat();
@@ -149,7 +145,7 @@ bool CGA::ReadTargetMeasurements()
 		DestroyMat(arr);
         return false;
 	}
-	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults1.txt");
+	SaveMatToFile(arr, "ReadTargetFibroblastMatResults1.txt");
 	for (int iW = 1; iW <= Nw; ++iW)
 	{		
 		m_pTargetMeasurement1[iW] = arr[Nh-MeasurementMarginIndexes][iW] - arr[MeasurementMarginIndexes + 1][iW];
@@ -172,7 +168,7 @@ bool CGA::ReadTargetMeasurements()
 		DestroyMat(arr);
         return false;
 	}
-	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults2.txt");
+	SaveMatToFile(arr, "ReadTargetFibroblastMatResults2.txt");
 	for (int iH = 1; iH <= Nh; ++iH)
 	{		
 		m_pTargetMeasurement2[iH] = arr[iH][Nw-MeasurementMarginIndexes] - arr[iH][MeasurementMarginIndexes + 1];
@@ -214,12 +210,13 @@ void CGA::CreateJobs()
 void CGA::ProcessJobs()
 {
 	LOG("------------- ProcessJobs started -------------");
+	LOG1("Total of %d jobs to send", m_jobVector.GetSize());
 	
 	int nCurProcess = 1;
 	int nNumberOfSlaveMachines = (m_nNumberOfMachines-1);
 	MPI_Request* requestArray = new MPI_Request[nNumberOfSlaveMachines];
 	MPI_Status* statusArray = new MPI_Status[nNumberOfSlaveMachines];
-
+	
 	while(true)
 	{	
 		Job* pJob = m_jobVector.GetJob();
@@ -229,18 +226,18 @@ void CGA::ProcessJobs()
 			break;
 		}
 		
-		LOG2("ProcessJobs, processing job - Candidate: #%d, JobType: %d", pJob->m_pCandidate->m_nIndex, pJob->m_nJobType);
-		LOG1("ProcessJobs, Sending job to process #%d", nCurProcess);
+		//LOG2("ProcessJobs, processing job - Candidate: #%d, JobType: %d", pJob->m_pCandidate->m_nIndex, pJob->m_nJobType);
+		//LOG1("ProcessJobs, Sending job to process #%d", nCurProcess);
 		MPI_Send(&(pJob->m_pCandidate->m_pFibroblastMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, nCurProcess, pJob->m_nJobType, MPI::COMM_WORLD);
-		LOG1("ProcessJobs, Async wait for job from process #%d", nCurProcess);
+		//LOG1("ProcessJobs, Async wait for job from process #%d", nCurProcess);
 		MPI_Irecv(&(pJob->m_pResultsMat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, nCurProcess, MPI_RESULT_TAG, MPI::COMM_WORLD, &requestArray[nCurProcess-1]);
 		
 		if(nCurProcess == (nNumberOfSlaveMachines))
 		{
-			LOG("ProcessJobs, Wait for all pending jobs to finish");
+			//LOG("ProcessJobs, Wait for all pending jobs to finish");
 			MPI_Waitall(nNumberOfSlaveMachines, requestArray, statusArray);
 			nCurProcess = 1;
-			LOG("ProcessJobs, Wait is over, continue processing jobs");
+			//LOG("ProcessJobs, Wait is over, continue processing jobs");
 		}
 		else
 		{
@@ -273,9 +270,9 @@ void CGA::ProcessResults(Candidate* pCandidate)
 		int nCost = std::abs(nCandidateResult - nTargetResult);
 		pCandidate->m_cost += (unsigned long int)nCost;
 		nCost1 += (unsigned long int)nCost;
-		LOG5("ProcessResults1 at %d, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", iW, nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
+		//LOG5("ProcessResults1 at %d, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", iW, nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
 	}
-	LOG1("ProcessResults1, total cost for protocol1: ", nCost1);
+	//LOG1("ProcessResults1, total cost for protocol1: %d", nCost1);
 	
 	// Calculate cost from result 2.
 	for (int iH = 1; iH < Nh+1; iH += SAMPLING_INTERVALS)
@@ -286,9 +283,9 @@ void CGA::ProcessResults(Candidate* pCandidate)
 		int nCost = std::abs(nCandidateResult - nTargetResult);
 		pCandidate->m_cost += (unsigned long int)nCost;
 		nCost2 += (unsigned long int)nCost;
-		LOG5("ProcessResults2 at %d, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", iH, nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
+		//LOG5("ProcessResults2 at %d, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", iH, nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
 	}
-	LOG1("ProcessResults2, total cost for protocol2: ", nCost2);
+	//LOG1("ProcessResults2, total cost for protocol2: %d", nCost2);
 	
 	LOG3("- ProcessResults, current cost for candidate #%d, %s: %u", pCandidate->m_nIndex, pCandidate->GetFullName(), pCandidate->m_cost);
 }
@@ -428,9 +425,11 @@ int CGA::CalculateError(double** pBestMatch)
 		for(int iW = 1; iW < Nw+1; ++iW)
 		{
 			int nTarget = (int)ceil(m_pTargetFibroblastMat[iH][iW]);
-			int nMatch = (int)ceil(pBestMatch[iH][iW]);
+			int nMatch = (int)ceil(pBestMatch[iH][iW]);			
 			if((nTarget == 0) != (nMatch == 0))
 			{
+				//printf("Target=%d at iH=%d, iW=%d\n", nTarget, iH, iW);
+				//printf("Match=%d at iH=%d, iW=%d\n", nMatch, iH, iW);
 				nError++;
 			}
 		}
@@ -457,7 +456,7 @@ double CGA::CalculateTargetCoverage(double** pBestMatch)
 				dTargetSize++;
 				if(nMatch != 0)
 				{
-					//printf("nMatch=%d at iH=%d, iW=%d\n", nTarget, iH, iW);
+					//printf("nMatch=%d at iH=%d, iW=%d\n", nMatch, iH, iW);
 					dCoverage++;
 				}				
 			}
@@ -645,105 +644,6 @@ void CGA::RunGA()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void StartMainProcess()
-{
-	LOG("Starting main process");
-	
-	// This is for the controlling master process.
-	srand((unsigned int)time(NULL));
-	
-	// Start timing.
-	clock_t mainStartingTime = clock();
-		
-	// Run main program.
-	CGA ga;
-	ga.RunGA();
-
-	int nNumberOfMachines = MPI::COMM_WORLD.Get_size(); // same as MPI_Comm_size(MPI_COMM_WORLD, &nthreads)
-	for(int iProcess = 1; iProcess < nNumberOfMachines; ++iProcess)
-	{
-		MPI_Send(NULL, 0, MPI_DOUBLE, iProcess, MPI_DIE_TAG, MPI::COMM_WORLD);
-		LOG1("Sending quit flag to process %d", iProcess);
-	}
-	
-	// End timing.
-	clock_t mainEndingTime = clock();
-	double mainRunningTime = (mainEndingTime - mainStartingTime)/double(CLOCKS_PER_SEC);
-	LOG1("Main duration: %.3f seconds", mainRunningTime);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-void StartSlaveProcess()
-{
-	LOG("Starting slave process");
-		
-	// This is for all the other processes which are not the master.		
-	// Create all the vars we will use for data transfer.
-	MPI_Status status; // can save resources by using the predefined constant MPI_STATUS_IGNORE as a special value for the status argument.	
-	S1Protocol s1;
-	S2Protocol s2;
-	
-	// Start the infinite loop (until the master tells us to quit).
-	LOG("Starting loop");
-	while(true)
-	{			
-		//CFkModel* pModel = new CFkModel();
-		CSBModel* pModel = new CSBModel();
-		double** fibroblast_mat = CreateMat();
-		double** result_mat = CreateMat();
-		
-		LOG("Waiting to receive mat");		
-		int nRet = MPI_Recv(&(fibroblast_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_ANY_TAG, MPI::COMM_WORLD, &status);
-		LOG1("Mat received, res: %d", nRet);
-		
-		// Start timing.
-		clock_t startingTime = clock();
-					
-		if (status.MPI_TAG == MPI_JOB_1_TAG) 
-		{
-			LOG("Executing 1st protocol");
-			pModel->ExecuteModel(fibroblast_mat, result_mat, s1);
-		}
-		else if (status.MPI_TAG == MPI_JOB_2_TAG) 
-		{
-			LOG("Executing 2nd protocol");
-			pModel->ExecuteModel(fibroblast_mat, result_mat, s2);
-		}
-		else if (status.MPI_TAG == MPI_DIE_TAG) 
-		{
-			LOG("Got the die tag. Exiting...");
-			break;
-		}
-		else
-		{
-			LOG("Got an invalid tag. Aborting !");
-			break;
-		}
-		
-		// End timing.
-		clock_t endingTime = clock();
-		double runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);
-		
-		LOG1("Finished executing protocol after %.3f seconds, sending results.", runningTime);
-		MPI_Send(&(result_mat[0][0]), Nh_with_border*Nw_with_border, MPI_DOUBLE, MPI_MASTER, MPI_RESULT_TAG, MPI::COMM_WORLD);
-		LOG("Results were sent.");
-		
-		// Clear up the matrix we use for data transfer.
-		delete pModel;
-		pModel = NULL;
-		DestroyMat(fibroblast_mat);
-		DestroyMat(result_mat);
-		
-	} // End of loop.
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-#include "SBModelDefs.h"
-
 void CGA::Test()
 {
 	//for(double dDiff = -0.0000020; dDiff <= 0.0000020; dDiff += 0.0000001)
@@ -755,8 +655,7 @@ void CGA::Test()
 	int nIndex = 0;
 	//Candidate* pCandidate = CreateRandomCandidate(nIndex);
 	//Candidate* pCandidate = new Candidate(nIndex, 0, 0, 0, 0); // No mat.
-	Candidate* pCandidate = new Candidate(nIndex, 50, 40, 64, 64);
-	//Candidate* pCandidate = new Candidate(nIndex, 58,49,68,66);
+	Candidate* pCandidate = new Candidate(nIndex, 61, 61, 80, 80);
 	
 	SaveMatToFile(pCandidate->m_pFibroblastMat, "TestMat.txt");
 	LOG1("Testing cost with candidate: %s", pCandidate->GetFullName());
@@ -816,61 +715,6 @@ void CGA::Test()
 	LOG("----------------------- Test ended -----------------------");
 	
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-void CreateLogFiles()
-{
-	// Getting general info about MPI.
-	int nCpuNameLen = MPI_MAX_PROCESSOR_NAME;
-	char sMachineName[MPI_MAX_PROCESSOR_NAME] = {0};
-	MPI_Get_processor_name(sMachineName, &nCpuNameLen);
-	int nCurProcess = MPI::COMM_WORLD.Get_rank(); // same as MPI_Comm_rank(MPI_COMM_WORLD, &tid)
-		
-	// Create the log file name.
-	sprintf(strLogFileName, "%s/Log_%i_on_%s.txt", LOG_FOLDER, nCurProcess, sMachineName);
-	sprintf(strLogSourceName, "Process %i on %s | ", nCurProcess, sMachineName);
-	
-	// Clear the current log file.
-	pLogFile = fopen(strLogFileName, "w");
-	if(pLogFile != NULL) { fclose(pLogFile); }	
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-
-//#define TESTING
-
-int main(int argc, char *argv[])
-{
-	int nProvided = -1;
-	int nMpiIntRet = MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &nProvided);	
-	srand((unsigned int)time(NULL));	
-		
-	// Start the appropriate process: master/slave
-	if(MPI::COMM_WORLD.Get_rank() == MPI_MASTER)
-	{	
-		CreateLogFiles();
-	#ifdef TESTING
-		CGA ga;
-		ga.Test();
-	}
-	#else
-		StartMainProcess();	
-	}
-	else
-	{	
-		CreateLogFiles();
-		StartSlaveProcess();
-	}
-	LOG("Ending process");
-	#endif // TESTING
-		
-	MPI_Finalize();
-		
-	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
