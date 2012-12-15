@@ -16,10 +16,14 @@
 #define RISE_TIME_VM_THRESHOLD (-20.0)
 
 // Fibroblasts
-#define FIBROBLAST_H_START 61
-#define FIBROBLAST_H_END 80
-#define FIBROBLAST_W_START 61
-#define FIBROBLAST_W_END 80
+#define FIBROBLAST_H_START 0
+#define FIBROBLAST_H_END 0
+#define FIBROBLAST_W_START 0
+#define FIBROBLAST_W_END 0
+
+#define FIBROBLAST_H_CENTER 60
+#define FIBROBLAST_W_CENTER 60
+#define FIBROBLAST_RADIUS   20
 
 // Space parameters
 #define dW 0.01 // mm/node
@@ -32,7 +36,7 @@
 #define STIMULATION_TOTAL_TIME 2.0 // 50.0 milliseconds
 #define STIMULATION_BEGIN 5.0 // milliseconds
 
-#define PROTOCOL 2
+#define PROTOCOL 1
 
 #if PROTOCOL == 0
 #define STIMULATION_H_START 0
@@ -276,7 +280,15 @@ void CreateFibroblastPatch()
 		{
 			g_pFibroblastMat[i*H + j] = 1.0;
 		}
-	}	
+	}
+
+	START_LOOP		
+		double dRadius = sqrt(pow(double(FIBROBLAST_H_CENTER - j), int(2)) + pow(double(FIBROBLAST_W_CENTER - i), int(2)));
+		if(dRadius <= FIBROBLAST_RADIUS)
+		{
+			g_pFibroblastMat[CUR_INDEX] = 1.0;
+		}
+	END_LOOP
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
