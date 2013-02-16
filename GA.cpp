@@ -15,6 +15,7 @@ using namespace std;
 
 CGA::CGA()
 {
+	bLogToFileOnly = false;
 	m_nNumberOfMachines = MPI::COMM_WORLD.Get_size(); // same as MPI_Comm_size(MPI_COMM_WORLD, &nthreads)
 
 	m_pTargetMeasurement1 = new double[Nw_with_border];
@@ -408,10 +409,15 @@ Candidate* CGA::CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex
 	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
 	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
 	{
-		nHStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
+		int nChosenParent = rand()%2;
+		/*nHStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
 		nWStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWStart[iPatch] : pParent2->m_nWStart[iPatch]);
 		nHEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHEnd[iPatch] : pParent2->m_nHEnd[iPatch]);
-		nWEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);	
+		nWEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);	*/
+		nHStart[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
+		nWStart[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWStart[iPatch] : pParent2->m_nWStart[iPatch]);
+		nHEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nHEnd[iPatch] : pParent2->m_nHEnd[iPatch]);
+		nWEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);
 	}	
 	Candidate* pChild = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
 	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());
@@ -509,6 +515,14 @@ void CGA::RunGA()
 		fprintf(pMinCostFile, "Iteration | MinCost | Mat | Error | Coverage\n");
 		fclose(pMinCostFile);
 	}
+
+	char matlabFileName[1024] = {0};
+	sprintf(matlabFileName, "%s/Matlab.txt", LOG_FOLDER);
+	FILE* pMatlabFile = fopen(matlabFileName, "w");
+	if(pMatlabFile != NULL)
+	{
+		fclose(pMatlabFile);
+	}
 	
 	// Start the loop.
 	LOG("------------------");
@@ -583,6 +597,21 @@ void CGA::RunGA()
 			fprintf(pMinCostFile, "%d | %d | %s | %d | %.3f\n", nCurIteration, MinCost[nCurIteration], Population[0]->GetFullName(), nError, dCoverage);
 			fclose(pMinCostFile);
 		}
+
+		pMatlabFile = fopen(matlabFileName, "a");
+		if(pMatlabFile != NULL)
+		{
+			fprintf(pMatlabFile, "\t%% %d | %d | %s | %d | %.3f\n", nCurIteration, MinCost[nCurIteration], Population[0]->GetFullName(), nError, dCoverage);
+			for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
+			{				
+				fprintf(pMatlabFile, "\tif(iPatch == %d)\n", iPatch);
+				fprintf(pMatlabFile, "\t\tfound_startIndexes = [%d,%d];\n", Population[0]->m_nHStart[iPatch], Population[0]->m_nWStart[iPatch]);
+				fprintf(pMatlabFile, "\t\tfound_endIndexes = [%d,%d];\n", Population[0]->m_nHEnd[iPatch], Population[0]->m_nWEnd[iPatch]);
+				fprintf(pMatlabFile, "\tend\n");				
+			}
+			fprintf(pMatlabFile, "\n%%----------------------------\n\n");
+			fclose(pMatlabFile);
+		}
 		
 		// Check break conditions.
 		if(MinCost[nCurIteration] == 0)
@@ -648,7 +677,7 @@ void CGA::RunGA()
 	}
 	
 	// Finished executing the GA.
-	LOG2("The best match found is: %s, with cost: ", Population[0]->GetFullName(), MinCost[nCurIteration]);
+	LOG2("The best match found is: %s, with cost: %d", Population[0]->GetFullName(), MinCost[nCurIteration]);
 	int nError = CalculateError(Population[0]->m_pFibroblastMat);
 	LOG1("The error for this match is: %d", nError);
 	
@@ -676,6 +705,11 @@ void CGA::Test()
 	nWStart[0] = 61;
 	nHEnd[0] = 80;
 	nWEnd[0] = 80;
+
+	nHStart[1] = 79;
+	nWStart[1] = 79;
+	nHEnd[1] = 98;
+	nWEnd[1] = 98;
 
 	//Candidate* pCandidate = CreateRandomCandidate(nIndex);
 	Candidate* pCandidate = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);

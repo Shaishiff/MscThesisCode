@@ -48,6 +48,7 @@ private:
 	vector<Candidate*> Population;
 	CSafeJobVector m_jobVector;
 	vector<char*> PastCandidates;
+	bool bLogToFileOnly;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////

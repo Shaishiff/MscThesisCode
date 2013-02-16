@@ -15,28 +15,30 @@
 #define FIBROBLAST_RISE_TIME (-1.0)
 #define RISE_TIME_VM_THRESHOLD (-20.0)
 
-// Fibroblasts
-#define FIBROBLAST_H_START 0
-#define FIBROBLAST_H_END 0
-#define FIBROBLAST_W_START 0
-#define FIBROBLAST_W_END 0
+// Fibroblasts patches.
+#define FIBROBLAST_PATCHES 3
 
+#define FIBROBLAST_H_START_PATCH_0 61
+#define FIBROBLAST_H_END_PATCH_0 80
+#define FIBROBLAST_W_START_PATCH_0 61
+#define FIBROBLAST_W_END_PATCH_0 80
+
+#define FIBROBLAST_H_START_PATCH_1 79
+#define FIBROBLAST_H_END_PATCH_1 98
+#define FIBROBLAST_W_START_PATCH_1 79
+#define FIBROBLAST_W_END_PATCH_1 98
+
+#define FIBROBLAST_H_START_PATCH_2 0
+#define FIBROBLAST_H_END_PATCH_2 0
+#define FIBROBLAST_W_START_PATCH_2 0
+#define FIBROBLAST_W_END_PATCH_2 0
+
+// Disc fibroblasts.
 #define FIBROBLAST_H_CENTER 60
 #define FIBROBLAST_W_CENTER 60
-#define FIBROBLAST_RADIUS   20
+#define FIBROBLAST_RADIUS   0
 
-// Space parameters
-#define dW 0.01 // mm/node
-#define dH 0.01 // mm/node
-#define W 142
-#define H 142
-
-// Stimulation parameters
-#define STIMULATION_AMP (-100.0) //3.0752 -100.0;//-100*Cm; // pA
-#define STIMULATION_TOTAL_TIME 2.0 // 50.0 milliseconds
-#define STIMULATION_BEGIN 5.0 // milliseconds
-
-#define PROTOCOL 1
+#define PROTOCOL 2
 
 #if PROTOCOL == 0
 #define STIMULATION_H_START 0
@@ -60,6 +62,17 @@
 #endif
 #endif
 #endif
+
+// Space parameters
+#define dW 0.01 // mm/node
+#define dH 0.01 // mm/node
+#define W 142
+#define H 142
+
+// Stimulation parameters
+#define STIMULATION_AMP (-100.0) //3.0752 -100.0;//-100*Cm; // pA
+#define STIMULATION_TOTAL_TIME 2.0 // 50.0 milliseconds
+#define STIMULATION_BEGIN 5.0 // milliseconds
 
 // Diffusion  parameters
 #define DIFFUSION_COEF 0.001//0.00056
@@ -274,21 +287,47 @@ void CreateFibroblastBorders()
 
 void CreateFibroblastPatch()
 {
-	for (int i = FIBROBLAST_H_START; i <= FIBROBLAST_H_END; ++i)
-	{	
-		for (int j = FIBROBLAST_W_START; j <= FIBROBLAST_W_END; ++j)
-		{
-			g_pFibroblastMat[i*H + j] = 1.0;
+	int nHStart[FIBROBLAST_PATCHES] = {0};
+	int nHEnd[FIBROBLAST_PATCHES] = {0};
+	int nWStart[FIBROBLAST_PATCHES] = {0};
+	int nWEnd[FIBROBLAST_PATCHES] = {0};
+
+	nHStart[0] = FIBROBLAST_H_START_PATCH_0;
+	nHEnd[0] = FIBROBLAST_H_END_PATCH_0;
+	nWStart[0] = FIBROBLAST_W_START_PATCH_0;
+	nWEnd[0] = FIBROBLAST_W_END_PATCH_0;
+
+	nHStart[1] = FIBROBLAST_H_START_PATCH_1;
+	nHEnd[1] = FIBROBLAST_H_END_PATCH_1;
+	nWStart[1] = FIBROBLAST_W_START_PATCH_1;
+	nWEnd[1] = FIBROBLAST_W_END_PATCH_1;
+
+	nHStart[2] = FIBROBLAST_H_START_PATCH_2;
+	nHEnd[2] = FIBROBLAST_H_END_PATCH_2;
+	nWStart[2] = FIBROBLAST_W_START_PATCH_2;
+	nWEnd[2] = FIBROBLAST_W_END_PATCH_2;
+
+	for(int iPatch = 0; iPatch < FIBROBLAST_PATCHES; ++iPatch)
+	{
+		for (int i = nHStart[iPatch]; i <= nHEnd[iPatch]; ++i)
+		{	
+			for (int j = nWStart[iPatch]; j <= nWEnd[iPatch]; ++j)
+			{
+				g_pFibroblastMat[i*H + j] = 1.0;
+			}
 		}
 	}
-
-	START_LOOP		
-		double dRadius = sqrt(pow(double(FIBROBLAST_H_CENTER - j), int(2)) + pow(double(FIBROBLAST_W_CENTER - i), int(2)));
+	
+	if(FIBROBLAST_RADIUS > 0)
+	{
+		START_LOOP		
+			double dRadius = sqrt(pow(double(FIBROBLAST_H_CENTER - j), int(2)) + pow(double(FIBROBLAST_W_CENTER - i), int(2)));
 		if(dRadius <= FIBROBLAST_RADIUS)
 		{
 			g_pFibroblastMat[CUR_INDEX] = 1.0;
 		}
-	END_LOOP
+		END_LOOP
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

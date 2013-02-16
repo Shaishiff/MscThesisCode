@@ -97,7 +97,7 @@ char* Candidate::GetFullName()
 		}
 		else
 		{
-			sprintf(m_cCandidateFullName,"%s | (%d,%d) -> (%d,%d)", temp, m_nHStart[iPatch], m_nWStart[iPatch], m_nHEnd[iPatch], m_nWEnd[iPatch]);
+			sprintf(m_cCandidateFullName,"%s + (%d,%d) -> (%d,%d)", temp, m_nHStart[iPatch], m_nWStart[iPatch], m_nHEnd[iPatch], m_nWEnd[iPatch]);
 		}		
 	}	
 	return m_cCandidateFullName; 

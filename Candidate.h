@@ -6,7 +6,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 
 #define CANDIDATE_MAX_NAME_LENGTH 		1024
-#define NUMBER_OF_FIBROBLAST_PATCHES	1
+#define NUMBER_OF_FIBROBLAST_PATCHES	3
 
 class Candidate
 {

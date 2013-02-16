@@ -11,15 +11,17 @@ using namespace std;
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-// #define TESTING
+//#define TESTING
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 void StartTestingProcess()
 {
+	bool bLogToFileOnly = false;
 	CGA ga;
 	ga.Test();
+	LOG("Ending process");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -27,6 +29,7 @@ void StartTestingProcess()
 
 void StartMainGaProcess()
 {
+	bool bLogToFileOnly = false;
 	LOG("Starting main process");
 	
 	// This is for the controlling master process.
@@ -50,6 +53,7 @@ void StartMainGaProcess()
 	clock_t mainEndingTime = clock();
 	double mainRunningTime = (mainEndingTime - mainStartingTime)/double(CLOCKS_PER_SEC);
 	LOG1("Main duration: %.3f seconds", mainRunningTime);
+	LOG("Ending process");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +61,7 @@ void StartMainGaProcess()
 
 void StartSlaveGaProcess()
 {
+	bool bLogToFileOnly = true;
 	LOG("Starting slave process");
 		
 	// This is for all the other processes which are not the master.		
@@ -117,6 +122,7 @@ void StartSlaveGaProcess()
 		DestroyMat(result_mat);
 		
 	} // End of loop.
+	LOG("Ending process");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -149,8 +155,7 @@ int main(int argc, char *argv[])
 	{	
 		CreateLogFile(nCurProcess, sMachineName);	
 		StartSlaveGaProcess();
-	}
-	LOG("Ending process");
+	}	
 	#endif // TESTING
 		
 	MPI_Finalize();

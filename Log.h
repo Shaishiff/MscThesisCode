@@ -22,7 +22,7 @@ void CreateLogFile(int nCurProcess, char* sMachineName);
 
 #define LOG_FOLDER "/a/home/cc/students/enginer/shaishif/Logs"
 
-#define PRINTLOG printf("%s%s\n", strLogSourceName, strLog); fflush(stdout); \
+#define PRINTLOG if(!bLogToFileOnly) {printf("%s%s\n", strLogSourceName, strLog); fflush(stdout); } \
 	pLogFile = fopen(strLogFileName, "a"); \
 	if(pLogFile != NULL) \
 	{ fprintf(pLogFile,"%d | %s%s\n", clock(), strLogSourceName, strLog); fclose(pLogFile); }
