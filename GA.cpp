@@ -336,10 +336,17 @@ void CGA::CreateRandomPopulation()
 
 Candidate* CGA::CreateRandomCandidate(int nIndex)
 {
-	int nHStart = rand()%(Max_h_Fibroblast - Min_h_Fibroblast + 1) + Min_h_Fibroblast;
-	int nWStart = rand()%(Max_w_Fibroblast - Min_w_Fibroblast + 1) + Min_w_Fibroblast;
-	int nHEnd = rand()%(Max_h_Fibroblast - nHStart + 1) + nHStart;
-	int nWEnd = rand()%(Max_w_Fibroblast - nWStart + 1) + nWStart;
+	int nHStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nWStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
+	{
+		nHStart[iPatch] = rand()%(Max_h_Fibroblast - Min_h_Fibroblast + 1) + Min_h_Fibroblast;
+		nWStart[iPatch] = rand()%(Max_w_Fibroblast - Min_w_Fibroblast + 1) + Min_w_Fibroblast;
+		nHEnd[iPatch] = rand()%(Max_h_Fibroblast - nHStart[iPatch] + 1) + nHStart[iPatch];
+		nWEnd[iPatch] = rand()%(Max_w_Fibroblast - nWStart[iPatch] + 1) + nWStart[iPatch];	
+	}	
 	return new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
 }
 
@@ -395,10 +402,17 @@ Candidate* CGA::CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex
 {
 	LOG2("Parent1, Candidate #%d: %s", pParent1->m_nIndex, pParent1->GetFullName());	
 	LOG2("Parent2, Candidate #%d: %s", pParent2->m_nIndex, pParent2->GetFullName());	
-	int nHStart = Mutate((rand()%2 == 1) ? pParent1->m_nHStart : pParent2->m_nHStart);
-	int nWStart = Mutate((rand()%2 == 1) ? pParent1->m_nWStart : pParent2->m_nWStart);
-	int nHEnd = Mutate((rand()%2 == 1) ? pParent1->m_nHEnd : pParent2->m_nHEnd);
-	int nWEnd = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd : pParent2->m_nWEnd);
+	int nHStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nWStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
+	{
+		nHStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
+		nWStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWStart[iPatch] : pParent2->m_nWStart[iPatch]);
+		nHEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHEnd[iPatch] : pParent2->m_nHEnd[iPatch]);
+		nWEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);	
+	}	
 	Candidate* pChild = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
 	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());
 	
@@ -653,9 +667,18 @@ void CGA::Test()
 	LOG("----------------------- Test started -----------------------");
 	
 	int nIndex = 0;
+	int nHStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nWStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	
+	nHStart[0] = 61;
+	nWStart[0] = 61;
+	nHEnd[0] = 80;
+	nWEnd[0] = 80;
+
 	//Candidate* pCandidate = CreateRandomCandidate(nIndex);
-	//Candidate* pCandidate = new Candidate(nIndex, 0, 0, 0, 0); // No mat.
-	Candidate* pCandidate = new Candidate(nIndex, 61, 61, 80, 80);
+	Candidate* pCandidate = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
 	
 	SaveMatToFile(pCandidate->m_pFibroblastMat, "TestMat.txt");
 	LOG1("Testing cost with candidate: %s", pCandidate->GetFullName());

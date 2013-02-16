@@ -6,7 +6,11 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-Candidate::Candidate(int nIndex, int nHStart, int nWStart, int nHEnd, int nWEnd)
+Candidate::Candidate(int nIndex, 
+	int nHStart[NUMBER_OF_FIBROBLAST_PATCHES], 
+	int nWStart[NUMBER_OF_FIBROBLAST_PATCHES], 
+	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES], 
+	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES])
 {
 	// Create the mats.
 	m_pFibroblastMat = CreateMat();	
@@ -14,14 +18,16 @@ Candidate::Candidate(int nIndex, int nHStart, int nWStart, int nHEnd, int nWEnd)
 	m_pResult2 = CreateMat();
 		
 	// Init the vars.
-	m_nIndex = nIndex;	
-	m_nHStart = nHStart;
-	m_nWStart = nWStart;
-	m_nHEnd = nHEnd;
-	m_nWEnd = nWEnd;
+	m_nIndex = nIndex;
 	m_cost = 0;
-	
 	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
+	for(int i = 0; i < NUMBER_OF_FIBROBLAST_PATCHES; ++i)
+	{
+		m_nHStart[i] = nHStart[i];
+		m_nWStart[i] = nWStart[i];
+		m_nHEnd[i] = nHEnd[i];
+		m_nWEnd[i] = nWEnd[i];	
+	}	
 	
 	// Now create the fibroblats.
 	CreateFibroblastBorders();
@@ -64,12 +70,15 @@ void Candidate::CreateFibroblastBorders()
 
 void Candidate::CreateFibroblastPatch()
 {
-	for (int iH = m_nHStart; iH <= m_nHEnd; ++iH)
-	{	
-		for (int iW = m_nWStart; iW <= m_nWEnd; ++iW)
-		{
-			m_pFibroblastMat[iH][iW] = 1.0;
-		}
+	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
+	{
+		for (int iH = m_nHStart[iPatch]; iH <= m_nHEnd[iPatch]; ++iH)
+		{	
+			for (int iW = m_nWStart[iPatch]; iW <= m_nWEnd[iPatch]; ++iW)
+			{
+				m_pFibroblastMat[iH][iW] = 1.0;
+			}
+		}	
 	}	
 }
 
@@ -78,7 +87,19 @@ void Candidate::CreateFibroblastPatch()
 
 char* Candidate::GetFullName()
 { 
-	sprintf(m_cCandidateFullName,"(%d,%d) -> (%d,%d)", m_nHStart, m_nWStart, m_nHEnd, m_nWEnd);
+	char temp[CANDIDATE_MAX_NAME_LENGTH] = {0};
+	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
+	{
+		sprintf(temp,"%s", m_cCandidateFullName);
+		if(iPatch == 0)
+		{
+			sprintf(m_cCandidateFullName,"(%d,%d) -> (%d,%d)", m_nHStart[iPatch], m_nWStart[iPatch], m_nHEnd[iPatch], m_nWEnd[iPatch]);
+		}
+		else
+		{
+			sprintf(m_cCandidateFullName,"%s | (%d,%d) -> (%d,%d)", temp, m_nHStart[iPatch], m_nWStart[iPatch], m_nHEnd[iPatch], m_nWEnd[iPatch]);
+		}		
+	}	
 	return m_cCandidateFullName; 
 }
 
