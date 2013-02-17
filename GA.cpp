@@ -341,12 +341,39 @@ Candidate* CGA::CreateRandomCandidate(int nIndex)
 	int nWStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
 	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
 	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	
 	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
 	{
-		nHStart[iPatch] = rand()%(Max_h_Fibroblast - Min_h_Fibroblast + 1) + Min_h_Fibroblast;
-		nWStart[iPatch] = rand()%(Max_w_Fibroblast - Min_w_Fibroblast + 1) + Min_w_Fibroblast;
-		nHEnd[iPatch] = rand()%(Max_h_Fibroblast - nHStart[iPatch] + 1) + nHStart[iPatch];
-		nWEnd[iPatch] = rand()%(Max_w_Fibroblast - nWStart[iPatch] + 1) + nWStart[iPatch];	
+		int nPartitionMinH = Min_h_Fibroblast;
+		int nPartitionMinW = Min_w_Fibroblast;
+		int nPartitionMaxH = Max_h_Fibroblast;		
+		int nPartitionMaxW = Max_w_Fibroblast;
+		switch(iPatch)
+		{
+			case 0:
+				nPartitionMaxH = nPartitionMinH + nHPartitionSize;
+				nPartitionMaxW = nPartitionMinW + nWPartitionSize;
+				break;
+			case 1:
+				nPartitionMaxH = nPartitionMinH + nHPartitionSize;
+				nPartitionMinW = nPartitionMaxW - nWPartitionSize;
+				break;
+			case 2:
+				nPartitionMinH = nPartitionMaxH - nHPartitionSize;
+				nPartitionMaxW = nPartitionMinW + nWPartitionSize;
+				break;
+			case 3:
+				nPartitionMinH = nPartitionMaxH - nHPartitionSize;
+				nPartitionMinW = nPartitionMaxW - nWPartitionSize;
+				break;
+			default:
+				break;
+		}
+		//LOG5("CreateRandomCandidate partition #%d sizes: (%d,%d) -> (%d,%d)", iPatch, nPartitionMinH, nPartitionMinW, nPartitionMaxH, nPartitionMaxW);
+		nHStart[iPatch] = rand()%(nPartitionMaxH - nPartitionMinH + 1) + nPartitionMinH;
+		nWStart[iPatch] = rand()%(nPartitionMaxW - nPartitionMinW + 1) + nPartitionMinW;
+		nHEnd[iPatch] = rand()%(nPartitionMaxH - nHStart[iPatch] + 1) + nHStart[iPatch];
+		nWEnd[iPatch] = rand()%(nPartitionMaxW - nWStart[iPatch] + 1) + nWStart[iPatch];	
 	}	
 	return new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
 }
@@ -408,16 +435,16 @@ Candidate* CGA::CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex
 	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
 	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
 	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
-	{
-		int nChosenParent = rand()%2;
-		/*nHStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
+	{		
+		nHStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
 		nWStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWStart[iPatch] : pParent2->m_nWStart[iPatch]);
 		nHEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHEnd[iPatch] : pParent2->m_nHEnd[iPatch]);
-		nWEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);	*/
+		nWEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);
+		/*int nChosenParent = rand()%2;
 		nHStart[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
 		nWStart[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWStart[iPatch] : pParent2->m_nWStart[iPatch]);
 		nHEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nHEnd[iPatch] : pParent2->m_nHEnd[iPatch]);
-		nWEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);
+		nWEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);*/
 	}	
 	Candidate* pChild = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
 	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());
@@ -616,6 +643,7 @@ void CGA::RunGA()
 		// Check break conditions.
 		if(MinCost[nCurIteration] == 0)
 		{
+			// This won't really happen...
 			LOG("Reached zero cost. Breaking the iterations !");
 			break;
 		}
@@ -624,7 +652,7 @@ void CGA::RunGA()
 			if(MinCost[nCurIteration] == MinCost[nCurIteration-1])
 			{
 				nLastMinCostCounter++;				
-				if(nLastMinCostCounter == 10)
+				if(nLastMinCostCounter == MAX_REPEATING_COSTS_FOR_DEAD_END)
 				{
 					LOG("Reached a dead end in the costs. Breaking the iterations !");
 					break;
@@ -701,15 +729,15 @@ void CGA::Test()
 	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
 	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
 	
-	nHStart[0] = 61;
-	nWStart[0] = 61;
-	nHEnd[0] = 80;
-	nWEnd[0] = 80;
+	nHStart[0] = 38;
+	nWStart[0] = 38;
+	nHEnd[0] = 52;
+	nWEnd[0] = 52;
 
-	nHStart[1] = 79;
-	nWStart[1] = 79;
-	nHEnd[1] = 98;
-	nWEnd[1] = 98;
+	nHStart[1] = 88;
+	nWStart[1] = 88;
+	nHEnd[1] = 102;
+	nWEnd[1] = 102;
 
 	//Candidate* pCandidate = CreateRandomCandidate(nIndex);
 	Candidate* pCandidate = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);

@@ -40,6 +40,7 @@ const int MPI_RESULT_TAG = 4000;
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate + 0.5)
 #define Nmates (Npop - NsurvivingPopulation)
 #define SAMPLING_INTERVALS	1
+#define MAX_REPEATING_COSTS_FOR_DEAD_END	25
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Simulation consts
@@ -59,6 +60,8 @@ const int Nh = (int)ceil(H/dH); // In indexes
 #define Min_h_Fibroblast (MeasurementMarginIndexes + 1)
 #define Max_w_Fibroblast (Nw - (MeasurementMarginIndexes + 1))
 #define Max_h_Fibroblast (Nh - (MeasurementMarginIndexes + 1))
+#define nHPartitionSize (ceil((Nh - MeasurementMarginIndexes)/4) + 5)
+#define nWPartitionSize (ceil((Nw - MeasurementMarginIndexes)/4) + 5)
 
 // Time parameters:
 const double dt = 0.005; // millisec
