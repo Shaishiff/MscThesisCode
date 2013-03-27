@@ -698,8 +698,8 @@ void CGA::RunGA(int iAlgoIndex, double** pCombinedFibroblastMat)
 				for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
 				{				
 					fprintf(pMatlabFile, "\tif(iPatch == %d)\n", iPatch);
-					fprintf(pMatlabFile, "\t\tfound_startIndexes = [%d,%d];\n", Population[0]->m_nHStart[iPatch], Population[0]->m_nWStart[iPatch]);
-					fprintf(pMatlabFile, "\t\tfound_endIndexes = [%d,%d];\n", Population[0]->m_nHEnd[iPatch], Population[0]->m_nWEnd[iPatch]);
+					fprintf(pMatlabFile, "\t\tfound_startIndexes = [%d,%d];\n", Population[0]->GetFibroblastPatch(iPatch).m_nHStart, Population[0]->GetFibroblastPatch(iPatch).m_nWStart);
+					fprintf(pMatlabFile, "\t\tfound_endIndexes = [%d,%d];\n", Population[0]->GetFibroblastPatch(iPatch).m_nHEnd, Population[0]->GetFibroblastPatch(iPatch).m_nWEnd);
 					fprintf(pMatlabFile, "\tend\n");				
 				}
 				fprintf(pMatlabFile, "\n%%----------------------------\n\n");
