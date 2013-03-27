@@ -335,12 +335,38 @@ void CGA::CreateRandomPopulation()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+void AddSortedToPatchesVector(FibroblastPatchVector& vecFibroblastPatchVector, FibroblastPatch newFibroblastPatch)
+{
+	bool bAdded = false;
+	FibroblastPatchVector vecNewFibroblastPatchVector;
+	int nDistance = (newFibroblastPatch.m_nHStart + newFibroblastPatch.m_nHEnd) +
+		(newFibroblastPatch.m_nWStart + newFibroblastPatch.m_nWEnd);
+	for(int iPatch = 0; iPatch < vecFibroblastPatchVector.size(); ++iPatch)
+	{
+		const FibroblastPatch& curFibroblastPatch = vecFibroblastPatchVector[iPatch];
+		int nCurDistance = (curFibroblastPatch.m_nHStart + curFibroblastPatch.m_nHEnd) +
+			(curFibroblastPatch.m_nWStart + curFibroblastPatch.m_nWEnd);
+		if(nDistance <= nCurDistance && !bAdded)
+		{
+			vecNewFibroblastPatchVector.push_back(newFibroblastPatch);
+			bAdded = true;
+		}
+		vecNewFibroblastPatchVector.push_back(curFibroblastPatch);
+	}
+	if(!bAdded)
+	{
+		vecNewFibroblastPatchVector.push_back(newFibroblastPatch);
+	}
+	vecFibroblastPatchVector = vecNewFibroblastPatchVector;
+}
+
 Candidate* CGA::CreateRandomCandidate(int nIndex)
 {
-	int nHStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	int nWStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	FibroblastPatchVector vecFibroblastPatchVector;
+	//int nHStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	//int nWStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	//int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	//int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
 	
 	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
 	{
@@ -348,6 +374,7 @@ Candidate* CGA::CreateRandomCandidate(int nIndex)
 		int nPartitionMinW = Min_w_Fibroblast;
 		int nPartitionMaxH = Max_h_Fibroblast;		
 		int nPartitionMaxW = Max_w_Fibroblast;
+		/*
 		switch(iPatch)
 		{
 			case 0:
@@ -369,13 +396,16 @@ Candidate* CGA::CreateRandomCandidate(int nIndex)
 			default:
 				break;
 		}
+		*/
+
 		//LOG5("CreateRandomCandidate partition #%d sizes: (%d,%d) -> (%d,%d)", iPatch, nPartitionMinH, nPartitionMinW, nPartitionMaxH, nPartitionMaxW);
-		nHStart[iPatch] = rand()%(nPartitionMaxH - nPartitionMinH + 1) + nPartitionMinH;
-		nWStart[iPatch] = rand()%(nPartitionMaxW - nPartitionMinW + 1) + nPartitionMinW;
-		nHEnd[iPatch] = rand()%(nPartitionMaxH - nHStart[iPatch] + 1) + nHStart[iPatch];
-		nWEnd[iPatch] = rand()%(nPartitionMaxW - nWStart[iPatch] + 1) + nWStart[iPatch];	
+		int nHStart = rand()%(nPartitionMaxH - nPartitionMinH + 1) + nPartitionMinH;
+		int nWStart = rand()%(nPartitionMaxW - nPartitionMinW + 1) + nPartitionMinW;
+		int nHEnd = rand()%(nPartitionMaxH - nHStart + 1) + nHStart;
+		int nWEnd = rand()%(nPartitionMaxW - nWStart + 1) + nWStart;
+		AddSortedToPatchesVector(vecFibroblastPatchVector, FibroblastPatch(nHStart, nWStart, nHEnd, nWEnd));
 	}	
-	return new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
+	return new Candidate(nIndex, vecFibroblastPatchVector); //nHStart, nWStart, nHEnd, nWEnd);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -429,24 +459,26 @@ void CGA::AddChildToPastCandidates(Candidate* pChild)
 Candidate* CGA::CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex)
 {
 	LOG2("Parent1, Candidate #%d: %s", pParent1->m_nIndex, pParent1->GetFullName());	
-	LOG2("Parent2, Candidate #%d: %s", pParent2->m_nIndex, pParent2->GetFullName());	
-	int nHStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	int nWStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
+	LOG2("Parent2, Candidate #%d: %s", pParent2->m_nIndex, pParent2->GetFullName());
+	FibroblastPatchVector vecFibroblastPatchVector;
+	int nHStart = 0;
+	int nWStart = 0;
+	int nHEnd = 0;
+	int nWEnd = 0;
 	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
-	{		
-		nHStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
-		nWStart[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWStart[iPatch] : pParent2->m_nWStart[iPatch]);
-		nHEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nHEnd[iPatch] : pParent2->m_nHEnd[iPatch]);
-		nWEnd[iPatch] = Mutate((rand()%2 == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);
+	{	
+		nHStart = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nHStart : pParent2->GetFibroblastPatch(iPatch).m_nHStart);
+		nWStart = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nWStart : pParent2->GetFibroblastPatch(iPatch).m_nWStart);
+		nHEnd = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nHEnd : pParent2->GetFibroblastPatch(iPatch).m_nHEnd);
+		nWEnd = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nWEnd : pParent2->GetFibroblastPatch(iPatch).m_nWEnd);
 		/*int nChosenParent = rand()%2;
 		nHStart[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
 		nWStart[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWStart[iPatch] : pParent2->m_nWStart[iPatch]);
 		nHEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nHEnd[iPatch] : pParent2->m_nHEnd[iPatch]);
 		nWEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);*/
+		AddSortedToPatchesVector(vecFibroblastPatchVector, FibroblastPatch(nHStart, nWStart, nHEnd, nWEnd));
 	}	
-	Candidate* pChild = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
+	Candidate* pChild = new Candidate(nIndex, vecFibroblastPatchVector);//nHStart, nWStart, nHEnd, nWEnd);
 	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());
 	
 	// Check if we already had this child.
@@ -632,8 +664,8 @@ void CGA::RunGA()
 			for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
 			{				
 				fprintf(pMatlabFile, "\tif(iPatch == %d)\n", iPatch);
-				fprintf(pMatlabFile, "\t\tfound_startIndexes = [%d,%d];\n", Population[0]->m_nHStart[iPatch], Population[0]->m_nWStart[iPatch]);
-				fprintf(pMatlabFile, "\t\tfound_endIndexes = [%d,%d];\n", Population[0]->m_nHEnd[iPatch], Population[0]->m_nWEnd[iPatch]);
+				fprintf(pMatlabFile, "\t\tfound_startIndexes = [%d,%d];\n", Population[0]->GetFibroblastPatch(iPatch).m_nHStart, Population[0]->GetFibroblastPatch(iPatch).m_nWStart);
+				fprintf(pMatlabFile, "\t\tfound_endIndexes = [%d,%d];\n", Population[0]->GetFibroblastPatch(iPatch).m_nHEnd, Population[0]->GetFibroblastPatch(iPatch).m_nWEnd);
 				fprintf(pMatlabFile, "\tend\n");				
 			}
 			fprintf(pMatlabFile, "\n%%----------------------------\n\n");
@@ -740,7 +772,8 @@ void CGA::Test()
 	nWEnd[1] = 102;
 
 	//Candidate* pCandidate = CreateRandomCandidate(nIndex);
-	Candidate* pCandidate = new Candidate(nIndex, nHStart, nWStart, nHEnd, nWEnd);
+	FibroblastPatchVector vecFibroblastPatch;
+	Candidate* pCandidate = new Candidate(nIndex, vecFibroblastPatch); //nHStart, nWStart, nHEnd, nWEnd);
 	
 	SaveMatToFile(pCandidate->m_pFibroblastMat, "TestMat.txt");
 	LOG1("Testing cost with candidate: %s", pCandidate->GetFullName());

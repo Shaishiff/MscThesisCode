@@ -7,10 +7,11 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 
 Candidate::Candidate(int nIndex, 
-	int nHStart[NUMBER_OF_FIBROBLAST_PATCHES], 
-	int nWStart[NUMBER_OF_FIBROBLAST_PATCHES], 
-	int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES], 
-	int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES])
+	FibroblastPatchVector vecFibroblastPatch)
+	//int nHStart[NUMBER_OF_FIBROBLAST_PATCHES], 
+	//int nWStart[NUMBER_OF_FIBROBLAST_PATCHES], 
+	//int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES], 
+	//int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES])
 {
 	// Create the mats.
 	m_pFibroblastMat = CreateMat();	
@@ -21,6 +22,8 @@ Candidate::Candidate(int nIndex,
 	m_nIndex = nIndex;
 	m_cost = 0;
 	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
+	m_vecFibroblastPatch = vecFibroblastPatch;
+	/*
 	for(int i = 0; i < NUMBER_OF_FIBROBLAST_PATCHES; ++i)
 	{
 		m_nHStart[i] = nHStart[i];
@@ -28,7 +31,8 @@ Candidate::Candidate(int nIndex,
 		m_nHEnd[i] = nHEnd[i];
 		m_nWEnd[i] = nWEnd[i];	
 	}	
-	
+	*/
+
 	// Now create the fibroblats.
 	CreateFibroblastBorders();
 	CreateFibroblastPatch();
@@ -70,11 +74,11 @@ void Candidate::CreateFibroblastBorders()
 
 void Candidate::CreateFibroblastPatch()
 {
-	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
+	for(int iPatch = 0; iPatch < m_vecFibroblastPatch.size(); ++iPatch)
 	{
-		for (int iH = m_nHStart[iPatch]; iH <= m_nHEnd[iPatch]; ++iH)
+		for (int iH = m_vecFibroblastPatch[iPatch].m_nHStart; iH <= m_vecFibroblastPatch[iPatch].m_nHEnd; ++iH)
 		{	
-			for (int iW = m_nWStart[iPatch]; iW <= m_nWEnd[iPatch]; ++iW)
+			for (int iW = m_vecFibroblastPatch[iPatch].m_nWStart; iW <= m_vecFibroblastPatch[iPatch].m_nWEnd; ++iW)
 			{
 				m_pFibroblastMat[iH][iW] = 1.0;
 			}
@@ -88,19 +92,39 @@ void Candidate::CreateFibroblastPatch()
 char* Candidate::GetFullName()
 { 
 	char temp[CANDIDATE_MAX_NAME_LENGTH] = {0};
-	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
+	for(int iPatch = 0; iPatch < m_vecFibroblastPatch.size(); ++iPatch)
 	{
 		sprintf(temp,"%s", m_cCandidateFullName);
 		if(iPatch == 0)
 		{
-			sprintf(m_cCandidateFullName,"(%d,%d) -> (%d,%d)", m_nHStart[iPatch], m_nWStart[iPatch], m_nHEnd[iPatch], m_nWEnd[iPatch]);
+			sprintf(m_cCandidateFullName,"(%d,%d) -> (%d,%d)", 
+				m_vecFibroblastPatch[iPatch].m_nHStart, 
+				m_vecFibroblastPatch[iPatch].m_nWStart, 
+				m_vecFibroblastPatch[iPatch].m_nHEnd,
+				m_vecFibroblastPatch[iPatch].m_nWEnd);
 		}
 		else
 		{
-			sprintf(m_cCandidateFullName,"%s + (%d,%d) -> (%d,%d)", temp, m_nHStart[iPatch], m_nWStart[iPatch], m_nHEnd[iPatch], m_nWEnd[iPatch]);
+			sprintf(m_cCandidateFullName,"%s + (%d,%d) -> (%d,%d)", temp, 
+				m_vecFibroblastPatch[iPatch].m_nHStart, 
+				m_vecFibroblastPatch[iPatch].m_nWStart, 
+				m_vecFibroblastPatch[iPatch].m_nHEnd,
+				m_vecFibroblastPatch[iPatch].m_nWEnd);
 		}		
 	}	
 	return m_cCandidateFullName; 
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+FibroblastPatch Candidate::GetFibroblastPatch(int iPatch) const
+{
+	if(m_vecFibroblastPatch.size() < iPatch)
+	{
+		throw;
+	}
+	return m_vecFibroblastPatch[iPatch];
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
