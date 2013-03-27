@@ -23,13 +23,14 @@ Candidate::Candidate(int nIndex,
 	m_cost = 0;
 	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
 	m_vecFibroblastPatch = vecFibroblastPatch;
+	
 	/*
 	for(int i = 0; i < NUMBER_OF_FIBROBLAST_PATCHES; ++i)
 	{
 		m_nHStart[i] = nHStart[i];
 		m_nWStart[i] = nWStart[i];
 		m_nHEnd[i] = nHEnd[i];
-		m_nWEnd[i] = nWEnd[i];	
+		m_nWEnd[i] = nWEnd[i];
 	}	
 	*/
 

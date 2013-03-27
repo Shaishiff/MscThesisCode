@@ -16,52 +16,47 @@
 #define RISE_TIME_VM_THRESHOLD (-20.0)
 
 // Fibroblasts patches.
-#define FIBROBLAST_PATCHES 3
+#define FIBROBLAST_PATCHES 4
 
-#define FIBROBLAST_H_START_PATCH_0 61
-#define FIBROBLAST_H_END_PATCH_0 80
-#define FIBROBLAST_W_START_PATCH_0 61
-#define FIBROBLAST_W_END_PATCH_0 80
+#define FIBROBLAST_H_START_PATCH_0 40
+#define FIBROBLAST_H_END_PATCH_0 90
+#define FIBROBLAST_W_START_PATCH_0 40
+#define FIBROBLAST_W_END_PATCH_0 90
 
-#define FIBROBLAST_H_START_PATCH_1 79
-#define FIBROBLAST_H_END_PATCH_1 98
-#define FIBROBLAST_W_START_PATCH_1 79
-#define FIBROBLAST_W_END_PATCH_1 98
+#define FIBROBLAST_H_START_PATCH_1 0
+#define FIBROBLAST_H_END_PATCH_1 0
+#define FIBROBLAST_W_START_PATCH_1 0
+#define FIBROBLAST_W_END_PATCH_1 0
 
 #define FIBROBLAST_H_START_PATCH_2 0
 #define FIBROBLAST_H_END_PATCH_2 0
 #define FIBROBLAST_W_START_PATCH_2 0
 #define FIBROBLAST_W_END_PATCH_2 0
 
+#define FIBROBLAST_H_START_PATCH_3 0
+#define FIBROBLAST_H_END_PATCH_3 0
+#define FIBROBLAST_W_START_PATCH_3 0
+#define FIBROBLAST_W_END_PATCH_3 0
+
 // Disc fibroblasts.
 #define FIBROBLAST_H_CENTER 60
 #define FIBROBLAST_W_CENTER 60
 #define FIBROBLAST_RADIUS   0
 
-#define PROTOCOL 2
+#define PROT_0_STIMULATION_H_START 0
+#define PROT_0_STIMULATION_H_END 0
+#define PROT_0_STIMULATION_W_START 0
+#define PROT_0_STIMULATION_W_END 0
 
-#if PROTOCOL == 0
-#define STIMULATION_H_START 0
-#define STIMULATION_H_END 0
-#define STIMULATION_W_START 0
-#define STIMULATION_W_END 0
-#else
-#if PROTOCOL == 1
-#define STIMULATION_H_START 1
-#define STIMULATION_H_END 2	
-#define STIMULATION_W_START 1
-#define STIMULATION_W_END (W-1)
-#else 
-#if PROTOCOL == 2
-#define STIMULATION_H_START 1
-#define STIMULATION_H_END (H-1)
-#define STIMULATION_W_START 1
-#define STIMULATION_W_END 2
-#else
-#error PROTOCOL must defined as 0, 1 or 2
-#endif
-#endif
-#endif
+#define PROT_1_STIMULATION_H_START 1
+#define PROT_1_STIMULATION_H_END 2	
+#define PROT_1_STIMULATION_W_START 1
+#define PROT_1_STIMULATION_W_END (W-1)
+
+#define PROT_2_STIMULATION_H_START 1
+#define PROT_2_STIMULATION_H_END (H-1)
+#define PROT_2_STIMULATION_W_START 1
+#define PROT_2_STIMULATION_W_END 2
 
 // Space parameters
 #define dW 0.01 // mm/node
@@ -153,11 +148,11 @@ void ShowVmMat()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void SaveModelOutputToFile(double sim_time)
+void SaveModelOutputToFile(double sim_time, int nProtocol)
 {
 	double sim_time_to_save = floor(sim_time + 0.5);
 	char fileName[1024] = {0};
-	sprintf(fileName, "Output\\ModelOutput_at_%.2f.txt", sim_time_to_save);
+	sprintf(fileName, "Output\\ModelLogs\\Prot%d\\ModelOutput_at_%.2f.txt", nProtocol, sim_time_to_save);
 	FILE* pFile = fopen(fileName, "w");
 	if(pFile == NULL)
 	{
@@ -171,6 +166,42 @@ void SaveModelOutputToFile(double sim_time)
 			fprintf(pFile, "%f ", g_pStateVars[i*H + j].V);
 		}
 		fprintf(pFile, "\n");
+	}	
+	fclose(pFile);
+	pFile = NULL;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+void SaveModelOutputToFile2(double sim_time, int nProtocol)
+{
+	char fileName[1024] = {0};
+	sprintf(fileName, "Output\\ModelLogs\\Prot%d\\ModelMeasurments.txt", nProtocol);
+	FILE* pFile = sim_time == 0.0 ? fopen(fileName, "w") : fopen(fileName, "a");
+	if(pFile == NULL)
+	{
+		return;
+	}
+	if(sim_time != 0.0)
+	{
+		fprintf(pFile, "\n");
+	}
+	if(nProtocol == 1)
+	{
+		for (int j = 1; j < H-1; j++)
+		{	
+			int i = (W-2-20);
+			fprintf(pFile, "%.6f ", g_pStateVars[i*H + j].V);
+		}				
+	}
+	else if(nProtocol == 2)
+	{
+		for (int i = 1; i < W-1; i++)
+		{	
+			int j = (H-2-20);
+			fprintf(pFile, "%.6f ", g_pStateVars[i*H + j].V);
+		}				
 	}	
 	fclose(pFile);
 	pFile = NULL;
@@ -222,10 +253,10 @@ void SaveFibroblastsToFile()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void SaveRiseTimeToFile()
+void SaveRiseTimeToFile(int nProtocol)
 {
 	char fileName[1024] = {0};
-	sprintf(fileName, "Output\\TargetFibroblastMatResults%d.txt", PROTOCOL);
+	sprintf(fileName, "Output\\TargetFibroblastMatResults%d.txt", nProtocol);
 	FILE* pFile = fopen(fileName, "w");
 	if(pFile == NULL)
 	{
@@ -307,6 +338,11 @@ void CreateFibroblastPatch()
 	nWStart[2] = FIBROBLAST_W_START_PATCH_2;
 	nWEnd[2] = FIBROBLAST_W_END_PATCH_2;
 
+	nHStart[3] = FIBROBLAST_H_START_PATCH_3;
+	nHEnd[3] = FIBROBLAST_H_END_PATCH_3;
+	nWStart[3] = FIBROBLAST_W_START_PATCH_3;
+	nWEnd[3] = FIBROBLAST_W_END_PATCH_3;
+
 	for(int iPatch = 0; iPatch < FIBROBLAST_PATCHES; ++iPatch)
 	{
 		for (int i = nHStart[iPatch]; i <= nHEnd[iPatch]; ++i)
@@ -358,11 +394,15 @@ void InitTensorMat()
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void InitProtcolMat()
+void InitProtcolMat(int nProtocol)
 {
+	int nHStart = (nProtocol == 0 ? PROT_0_STIMULATION_H_START : (nProtocol == 1 ? PROT_1_STIMULATION_H_START : PROT_2_STIMULATION_H_START));
+	int nWStart = (nProtocol == 0 ? PROT_0_STIMULATION_W_START : (nProtocol == 1 ? PROT_1_STIMULATION_W_START : PROT_2_STIMULATION_W_START));
+	int nHEnd = (nProtocol == 0 ? PROT_0_STIMULATION_H_END : (nProtocol == 1 ? PROT_1_STIMULATION_H_END : PROT_2_STIMULATION_H_END));
+	int nWEnd = (nProtocol == 0 ? PROT_0_STIMULATION_W_END : (nProtocol == 1 ? PROT_1_STIMULATION_W_END : PROT_2_STIMULATION_W_END));
 	START_LOOP
-		if(i >= STIMULATION_H_START && i <= STIMULATION_H_END &&
-			j >= STIMULATION_W_START && j <= STIMULATION_W_END)
+		if(i >= nHStart && i <= nHEnd &&
+			j >= nWStart && j <= nWEnd)
 		{	
 			g_pStimulation[CUR_INDEX] = STIMULATION_AMP;
 		}
@@ -395,96 +435,103 @@ void InitRiseTimeMat()
 
 int main(int argc, char *argv[])
 {		
-	InitFibroblastMat();
-	CreateFibroblastBorders();
-	CreateFibroblastPatch();
-	SaveFibroblastsToFile();
-	InitStateVars();
-	InitTensorMat();
-	InitProtcolMat();
-	InitRiseTimeMat();
+	for(int iProtocol = 1; iProtocol <= 2; ++iProtocol)
+	{
+		printf("\n*******************\nStarted protocol %d\n*******************\n\n", iProtocol);
 
-	double dFirstRiseTime = 0.0;
-	double dStimulation = 0.0;
-	bool bStimulation = false;
-	double dNextTimeToSaveOutput = 0.0;
-	double dVm[W*H] = {0};
-	double dVm_plus_x = 0.0;
-	double dVm_minus_x = 0.0;
-	double dVm_plus_y = 0.0;
-	double dVm_minus_y = 0.0;
-	double dIion = 0.0;
-	clock_t startingTime = clock();
-	for (double sim_time = 0.0; sim_time < (MAX_SIMULATION_TIME + dt); sim_time += dt) 
-	{	
-		if (sim_time >= dNextTimeToSaveOutput)
-		{
-			clock_t endingTime = clock();
-			double runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);
-			startingTime = clock();
-			dNextTimeToSaveOutput += SAVE_OUTPUT_PERIOD;
-			printf("Vm mat at time: %.2f (duration: %.3f)\n", sim_time, runningTime);
-			ShowVmMat();
-			SaveModelOutputToFile(sim_time);
+		InitFibroblastMat();
+		CreateFibroblastBorders();
+		CreateFibroblastPatch();
+		SaveFibroblastsToFile();
+		InitStateVars();
+		InitTensorMat();
+		InitProtcolMat(iProtocol);
+		InitRiseTimeMat();
 
-			bool bStopSim = true;
-			START_LOOP					
+		double dFirstRiseTime = 0.0;
+		double dStimulation = 0.0;
+		bool bStimulation = false;
+		double dNextTimeToSaveOutput = 0.0;
+		double dVm[W*H] = {0};
+		double dVm_plus_x = 0.0;
+		double dVm_minus_x = 0.0;
+		double dVm_plus_y = 0.0;
+		double dVm_minus_y = 0.0;
+		double dIion = 0.0;
+		clock_t startingTime = clock();
+		for (double sim_time = 0.0; sim_time < (MAX_SIMULATION_TIME + dt); sim_time += dt) 
+		{	
+			SaveModelOutputToFile2(sim_time, iProtocol);
+
+			if (sim_time >= dNextTimeToSaveOutput)
+			{
+				clock_t endingTime = clock();
+				double runningTime = (endingTime - startingTime)/double(CLOCKS_PER_SEC);
+				startingTime = clock();
+				dNextTimeToSaveOutput += SAVE_OUTPUT_PERIOD;
+				printf("Vm mat at time: %.2f (duration: %.3f)\n", sim_time, runningTime);
+				ShowVmMat();
+				SaveModelOutputToFile(sim_time, iProtocol);
+
+				bool bStopSim = true;
+				START_LOOP					
+					if (g_pFibroblastMat[CUR_INDEX] == 0.0)
+					{
+						if(g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME)
+						{
+							bStopSim = false;
+							break;
+						}
+					}
+				END_LOOP
+				if(bStopSim)
+				{
+					break;
+				}			
+			}
+
+			bStimulation = ((sim_time >= STIMULATION_BEGIN) && (sim_time < STIMULATION_BEGIN + STIMULATION_TOTAL_TIME));
+
+			for (int x = 0; x < W; x++)
+			{
+				for (int y = 0; y < H; y++)
+				{
+					if (g_pFibroblastMat[x*H + y] == 0.0)
+					{
+						dVm_plus_x = (2.0*g_pTensorMat[x*H+y].Dii*g_pTensorMat[(x+1)*H+y].Dii/(g_pTensorMat[x*H+y].Dii+g_pTensorMat[(x+1)*H+y].Dii))*(g_pStateVars[(x+1)*H+y].V-g_pStateVars[x*H+y].V)/dW;
+						dVm_plus_x += ((g_pTensorMat[x*H+y].Dij*g_pTensorMat[(x+1)*H+y].Dii+g_pTensorMat[x*H+y].Dii*g_pTensorMat[(x+1)*H+y].Dij)/(g_pTensorMat[x*H+y].Dii+g_pTensorMat[(x+1)*H+y].Dii))*(g_pStateVars[x*H+y+1].V+g_pStateVars[(x+1)*H+y+1].V-g_pStateVars[x*H+y-1].V-g_pStateVars[(x+1)*H+y-1].V)/(4.0*dH);
+						dVm_minus_x = (2.0*g_pTensorMat[(x-1)*H+y].Dii*g_pTensorMat[x*H+y].Dii/(g_pTensorMat[(x-1)*H+y].Dii+g_pTensorMat[x*H+y].Dii))*(g_pStateVars[x*H+y].V-g_pStateVars[(x-1)*H+y].V)/dW;
+						dVm_minus_x += ((g_pTensorMat[(x-1)*H+y].Dij*g_pTensorMat[x*H+y].Dii+g_pTensorMat[(x-1)*H+y].Dii*g_pTensorMat[x*H+y].Dij)/(g_pTensorMat[(x-1)*H+y].Dii+g_pTensorMat[x*H+y].Dii))*(g_pStateVars[x*H+y+1].V+g_pStateVars[(x-1)*H+y+1].V-g_pStateVars[x*H+y-1].V-g_pStateVars[(x-1)*H+y-1].V)/(4.0*dH);
+						dVm_plus_y = (2.0*g_pTensorMat[x*H+y].Djj*g_pTensorMat[x*H+y+1].Djj/(g_pTensorMat[x*H+y].Djj+g_pTensorMat[x*H+y+1].Djj))*(g_pStateVars[x*H+y+1].V-g_pStateVars[x*H+y].V)/dH;
+						dVm_plus_y += ((g_pTensorMat[x*H+y].Dij*g_pTensorMat[x*H+y+1].Djj+g_pTensorMat[x*H+y].Djj*g_pTensorMat[x*H+y+1].Dij)/(g_pTensorMat[x*H+y].Djj+g_pTensorMat[x*H+y+1].Djj))*(g_pStateVars[(x+1)*H+y].V+g_pStateVars[(x+1)*H+y+1].V-g_pStateVars[(x-1)*H+y].V-g_pStateVars[(x-1)*H+y+1].V)/(4.0*dW);
+						dVm_minus_y = (2.0*g_pTensorMat[x*H+y-1].Djj*g_pTensorMat[x*H+y].Djj/(g_pTensorMat[x*H+y-1].Djj+g_pTensorMat[x*H+y].Djj))*(g_pStateVars[x*H+y].V-g_pStateVars[x*H+y-1].V)/dH;
+						dVm_minus_y += ((g_pTensorMat[x*H+y-1].Dij*g_pTensorMat[x*H+y].Djj+g_pTensorMat[x*H+y-1].Djj*g_pTensorMat[x*H+y].Dij)/(g_pTensorMat[x*H+y-1].Djj+g_pTensorMat[x*H+y].Djj))*(g_pStateVars[(x+1)*H+y].V+g_pStateVars[(x+1)*H+y-1].V-g_pStateVars[(x-1)*H+y].V-g_pStateVars[(x-1)*H+y-1].V)/(4.0*dW);
+						dVm[x*H+y] = ((dVm_plus_x-dVm_minus_x)*dH+(dVm_plus_y-dVm_minus_y)*dW)/(dW*dH);
+					}
+				}
+			}
+
+			START_LOOP		
+				bStimulation ? dStimulation = g_pStimulation[CUR_INDEX] : dStimulation = 0.0;
 				if (g_pFibroblastMat[CUR_INDEX] == 0.0)
 				{
-					if(g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME)
-					{
-						bStopSim = false;
-						break;
-					}
-				}
-			END_LOOP
-			if(bStopSim)
-			{
-				break;
-			}			
-		}
-
-		bStimulation = ((sim_time >= STIMULATION_BEGIN) && (sim_time < STIMULATION_BEGIN + STIMULATION_TOTAL_TIME));
-
-		for (int x = 0; x < W; x++)
-		{
-			for (int y = 0; y < H; y++)
-			{
-				if (g_pFibroblastMat[x*H + y] == 0.0)
-				{
-					dVm_plus_x = (2.0*g_pTensorMat[x*H+y].Dii*g_pTensorMat[(x+1)*H+y].Dii/(g_pTensorMat[x*H+y].Dii+g_pTensorMat[(x+1)*H+y].Dii))*(g_pStateVars[(x+1)*H+y].V-g_pStateVars[x*H+y].V)/dW;
-					dVm_plus_x += ((g_pTensorMat[x*H+y].Dij*g_pTensorMat[(x+1)*H+y].Dii+g_pTensorMat[x*H+y].Dii*g_pTensorMat[(x+1)*H+y].Dij)/(g_pTensorMat[x*H+y].Dii+g_pTensorMat[(x+1)*H+y].Dii))*(g_pStateVars[x*H+y+1].V+g_pStateVars[(x+1)*H+y+1].V-g_pStateVars[x*H+y-1].V-g_pStateVars[(x+1)*H+y-1].V)/(4.0*dH);
-					dVm_minus_x = (2.0*g_pTensorMat[(x-1)*H+y].Dii*g_pTensorMat[x*H+y].Dii/(g_pTensorMat[(x-1)*H+y].Dii+g_pTensorMat[x*H+y].Dii))*(g_pStateVars[x*H+y].V-g_pStateVars[(x-1)*H+y].V)/dW;
-					dVm_minus_x += ((g_pTensorMat[(x-1)*H+y].Dij*g_pTensorMat[x*H+y].Dii+g_pTensorMat[(x-1)*H+y].Dii*g_pTensorMat[x*H+y].Dij)/(g_pTensorMat[(x-1)*H+y].Dii+g_pTensorMat[x*H+y].Dii))*(g_pStateVars[x*H+y+1].V+g_pStateVars[(x-1)*H+y+1].V-g_pStateVars[x*H+y-1].V-g_pStateVars[(x-1)*H+y-1].V)/(4.0*dH);
-					dVm_plus_y = (2.0*g_pTensorMat[x*H+y].Djj*g_pTensorMat[x*H+y+1].Djj/(g_pTensorMat[x*H+y].Djj+g_pTensorMat[x*H+y+1].Djj))*(g_pStateVars[x*H+y+1].V-g_pStateVars[x*H+y].V)/dH;
-					dVm_plus_y += ((g_pTensorMat[x*H+y].Dij*g_pTensorMat[x*H+y+1].Djj+g_pTensorMat[x*H+y].Djj*g_pTensorMat[x*H+y+1].Dij)/(g_pTensorMat[x*H+y].Djj+g_pTensorMat[x*H+y+1].Djj))*(g_pStateVars[(x+1)*H+y].V+g_pStateVars[(x+1)*H+y+1].V-g_pStateVars[(x-1)*H+y].V-g_pStateVars[(x-1)*H+y+1].V)/(4.0*dW);
-					dVm_minus_y = (2.0*g_pTensorMat[x*H+y-1].Djj*g_pTensorMat[x*H+y].Djj/(g_pTensorMat[x*H+y-1].Djj+g_pTensorMat[x*H+y].Djj))*(g_pStateVars[x*H+y].V-g_pStateVars[x*H+y-1].V)/dH;
-					dVm_minus_y += ((g_pTensorMat[x*H+y-1].Dij*g_pTensorMat[x*H+y].Djj+g_pTensorMat[x*H+y-1].Djj*g_pTensorMat[x*H+y].Dij)/(g_pTensorMat[x*H+y-1].Djj+g_pTensorMat[x*H+y].Djj))*(g_pStateVars[(x+1)*H+y].V+g_pStateVars[(x+1)*H+y-1].V-g_pStateVars[(x-1)*H+y].V-g_pStateVars[(x-1)*H+y-1].V)/(4.0*dW);
-					dVm[x*H+y] = ((dVm_plus_x-dVm_minus_x)*dH+(dVm_plus_y-dVm_minus_y)*dW)/(dW*dH);
-				}
-			}
-		}
-
-		START_LOOP		
-			bStimulation ? dStimulation = g_pStimulation[CUR_INDEX] : dStimulation = 0.0;
-			if (g_pFibroblastMat[CUR_INDEX] == 0.0)
-			{
-				dIion = CalcTotalTransmembraneCurrents(g_pStateVars[CUR_INDEX], dStimulation);
-				g_pStateVars[CUR_INDEX].V += dt*(dVm[CUR_INDEX] - dIion);
+					dIion = CalcTotalTransmembraneCurrents(g_pStateVars[CUR_INDEX], dStimulation);
+					g_pStateVars[CUR_INDEX].V += dt*(dVm[CUR_INDEX] - dIion);
 			
-				if((g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME) && (g_pStateVars[CUR_INDEX].V > RISE_TIME_VM_THRESHOLD))
-				{				
-					if(dFirstRiseTime == 0.0)
-					{
-						dFirstRiseTime = sim_time;
+					if((g_pRiseTimeMat[CUR_INDEX] == INVALID_RISE_TIME) && (g_pStateVars[CUR_INDEX].V > RISE_TIME_VM_THRESHOLD))
+					{				
+						if(dFirstRiseTime == 0.0)
+						{
+							dFirstRiseTime = sim_time;
+						}
+						g_pRiseTimeMat[CUR_INDEX] = sim_time - dFirstRiseTime;
 					}
-					g_pRiseTimeMat[CUR_INDEX] = sim_time - dFirstRiseTime;
 				}
-			}
-		END_LOOP		
-	} // sim_time loop
+			END_LOOP		
+		} // sim_time loop
 
-	SaveRiseTimeToFile();
+		SaveRiseTimeToFile(iProtocol);
+	}
 	return 0;
 } // of main
 
