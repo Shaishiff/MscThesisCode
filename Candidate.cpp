@@ -21,12 +21,25 @@ Candidate::Candidate(int nIndex,
 	m_nIndex = nIndex;
 	m_cost = 0;
 	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
+	int nTemp = 0;
 	for(int i = 0; i < NUMBER_OF_FIBROBLAST_PATCHES; ++i)
 	{
 		m_nHStart[i] = nHStart[i];
 		m_nWStart[i] = nWStart[i];
 		m_nHEnd[i] = nHEnd[i];
-		m_nWEnd[i] = nWEnd[i];	
+		m_nWEnd[i] = nWEnd[i];
+		/*if(m_nHStart[i] > m_nHEnd[i])
+		{
+			nTemp = m_nHStart[i];
+			m_nHStart[i] = m_nHEnd[i];
+			m_nHEnd[i] = nTemp;
+		}
+		if(m_nWStart[i] > m_nWEnd[i])
+		{
+			nTemp = m_nWStart[i];
+			m_nWStart[i] = m_nWEnd[i];
+			m_nWEnd[i] = nTemp;
+		}*/
 	}	
 	
 	// Now create the fibroblats.

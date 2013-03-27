@@ -17,7 +17,7 @@ void CreateLogFile(int nCurProcess, char* sMachineName)
 	// Create the log file name.
 	if(nCurProcess != 0)
 	{
-		sprintf(strLogFileName, "%s/Log_%i_on_%s.txt", LOG_FOLDER, nCurProcess, sMachineName);
+		sprintf(strLogFileName, "%s/MpiLogs/Log_%i_on_%s.txt", LOG_FOLDER, nCurProcess, sMachineName);
 	}
 	else
 	{

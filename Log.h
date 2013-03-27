@@ -20,7 +20,7 @@ void CreateLogFile(int nCurProcess, char* sMachineName);
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define LOG_FOLDER "/a/home/cc/students/enginer/shaishif/Logs"
+#define LOG_FOLDER "/a/home/cc/students/enginer/shaishif/Output"
 
 #define PRINTLOG if(!bLogToFileOnly) {printf("%s%s\n", strLogSourceName, strLog); fflush(stdout); } \
 	pLogFile = fopen(strLogFileName, "a"); \

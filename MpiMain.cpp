@@ -39,8 +39,16 @@ void StartMainGaProcess()
 	clock_t mainStartingTime = clock();
 		
 	// Run main program.
-	CGA ga;
-	ga.RunGA();
+	//double** pCombinedFibroblastMat = CreateMat();
+	for(int iAlgoIndex = 0; iAlgoIndex < 5; ++iAlgoIndex)
+	{
+		CGA ga;
+		ga.RunGA(iAlgoIndex, NULL);
+	}
+	/*char combinedFibroblastFileName[FILE_NAME_BUFFER_SIZE] = {0};
+	sprintf(combinedFibroblastFileName, "%s/CombinedFibroblasts.txt", LOG_FOLDER);
+	SaveMatToFileWithFullNameIntFormat(pCombinedFibroblastMat, combinedFibroblastFileName);
+	DestroyMat(pCombinedFibroblastMat);*/
 
 	int nNumberOfMachines = MPI::COMM_WORLD.Get_size(); // same as MPI_Comm_size(MPI_COMM_WORLD, &nthreads)
 	for(int iProcess = 1; iProcess < nNumberOfMachines; ++iProcess)
