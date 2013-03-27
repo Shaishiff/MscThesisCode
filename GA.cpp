@@ -328,25 +328,50 @@ void CGA::CreateRandomPopulation()
 {
 	for(int iPop = 0; iPop < Npop; ++iPop)
 	{		
-		Population.push_back(CreateRandomCandidate(iPop));
-	}
+		Candidate* pCandidate = CreateRandomCandidate(iPop);
+		Population.push_back(pCandidate);
+		AddChildToPastCandidates(pCandidate);
+	}	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void AddSortedToPatchesVector(FibroblastPatchVector& vecFibroblastPatchVector, FibroblastPatch newFibroblastPatch)
+double CGA::CalculatePatchDistance(const FibroblastPatch& newFibroblastPatch)
+{
+	// Calculate the center of the patch from (0,0):
+	double dHDistance = (double)newFibroblastPatch.m_nHStart + 
+		(newFibroblastPatch.m_nHEnd - newFibroblastPatch.m_nHStart)/2;
+
+	double dWDistance = (double)newFibroblastPatch.m_nWStart + 
+		(newFibroblastPatch.m_nWEnd - newFibroblastPatch.m_nWStart)/2;
+
+	double dDistance = sqrt(pow(dHDistance,2) + pow(dWDistance,2));
+	/*
+	LOG5("CalculatePatchDistance (%d,%d)-(%d,%d) = %f", 
+		newFibroblastPatch.m_nHStart, 
+		newFibroblastPatch.m_nWStart,
+		newFibroblastPatch.m_nHEnd,
+		newFibroblastPatch.m_nWEnd,
+		dDistance)
+	*/
+	return dDistance;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+void CGA::AddSortedToPatchesVector(FibroblastPatchVector& vecFibroblastPatchVector, FibroblastPatch newFibroblastPatch)
 {
 	bool bAdded = false;
 	FibroblastPatchVector vecNewFibroblastPatchVector;
-	int nDistance = (newFibroblastPatch.m_nHStart + newFibroblastPatch.m_nHEnd) +
-		(newFibroblastPatch.m_nWStart + newFibroblastPatch.m_nWEnd);
+	double dDistance = CalculatePatchDistance(newFibroblastPatch);
+
 	for(int iPatch = 0; iPatch < vecFibroblastPatchVector.size(); ++iPatch)
 	{
 		const FibroblastPatch& curFibroblastPatch = vecFibroblastPatchVector[iPatch];
-		int nCurDistance = (curFibroblastPatch.m_nHStart + curFibroblastPatch.m_nHEnd) +
-			(curFibroblastPatch.m_nWStart + curFibroblastPatch.m_nWEnd);
-		if(nDistance <= nCurDistance && !bAdded)
+		double dCurDistance = CalculatePatchDistance(curFibroblastPatch);
+		if(dDistance <= dCurDistance && !bAdded)
 		{
 			vecNewFibroblastPatchVector.push_back(newFibroblastPatch);
 			bAdded = true;
@@ -363,11 +388,6 @@ void AddSortedToPatchesVector(FibroblastPatchVector& vecFibroblastPatchVector, F
 Candidate* CGA::CreateRandomCandidate(int nIndex)
 {
 	FibroblastPatchVector vecFibroblastPatchVector;
-	//int nHStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	//int nWStart[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	//int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	//int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES] = {0};
-	
 	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
 	{
 		int nPartitionMinH = Min_h_Fibroblast;
@@ -433,7 +453,7 @@ bool CGA::IsNewChild(Candidate* pChild)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-
+/*
 void CGA::ClearPopulation()
 {
 	for(int iPop = 0; iPop < Npop; ++iPop)
@@ -442,7 +462,7 @@ void CGA::ClearPopulation()
 	}
 	Population.clear();
 }
-
+*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -450,7 +470,8 @@ void CGA::ClearPastCandidates()
 {
 	for(int iPastChild = 0; iPastChild < (int)PastCandidates.size(); iPastChild++)
 	{
-		delete PastCandidates[iPastChild];		
+		char* pCandidateName = PastCandidates[iPastChild];
+		delete [] pCandidateName;
 	}
 	PastCandidates.clear();
 }

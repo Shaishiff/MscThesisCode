@@ -37,18 +37,10 @@ typedef std::vector<FibroblastPatch> FibroblastPatchVector;
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#define CANDIDATE_MAX_NAME_LENGTH 		1024
-#define NUMBER_OF_FIBROBLAST_PATCHES	4
-
 class Candidate
 {
 public:
-	Candidate(int nIndex,
-		FibroblastPatchVector vecFibroblastPatch);
-		//int nHStart[NUMBER_OF_FIBROBLAST_PATCHES], 
-		//int nWStart[NUMBER_OF_FIBROBLAST_PATCHES], 
-		//int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES], 
-		//int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES]);
+	Candidate(int nIndex, FibroblastPatchVector vecFibroblastPatch);
 	virtual ~Candidate();	
 	char* GetFullName();
 	FibroblastPatch GetFibroblastPatch(int iPatch) const;
@@ -67,12 +59,8 @@ public:
 private:
 	FibroblastPatchVector m_vecFibroblastPatch;
 
-	//int m_nHStart[NUMBER_OF_FIBROBLAST_PATCHES];
-	//int m_nWStart[NUMBER_OF_FIBROBLAST_PATCHES];
-	//int m_nHEnd[NUMBER_OF_FIBROBLAST_PATCHES];
-	//int m_nWEnd[NUMBER_OF_FIBROBLAST_PATCHES];
-	
 private:
+	#define CANDIDATE_MAX_NAME_LENGTH 		1024
 	char m_cCandidateFullName[CANDIDATE_MAX_NAME_LENGTH];
 };
 

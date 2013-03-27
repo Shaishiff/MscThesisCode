@@ -35,7 +35,7 @@ const int MPI_RESULT_TAG = 4000;
 //////////////////////////////////////////////////////////////////////////////////////////
 
 #define Npop 20
-#define MaxIterations 5
+#define MaxIterations 2
 #define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate + 0.5)
 #define Nmates (Npop - NsurvivingPopulation)
@@ -45,6 +45,8 @@ const int MPI_RESULT_TAG = 4000;
 //////////////////////////////////////////////////////////////////////////////////////////
 // Simulation consts
 //////////////////////////////////////////////////////////////////////////////////////////
+
+#define NUMBER_OF_FIBROBLAST_PATCHES	4
 
 // Space parameters
 #define dW 0.01 // cm/node

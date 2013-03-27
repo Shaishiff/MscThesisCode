@@ -35,6 +35,8 @@ private:
 	void AddChildToPastCandidates(Candidate* pChild);
 	void ClearPastCandidates();
 	void ClearPopulation();
+	void AddSortedToPatchesVector(FibroblastPatchVector& vecFibroblastPatchVector, FibroblastPatch newFibroblastPatch);
+	double CalculatePatchDistance(const FibroblastPatch& newFibroblastPatch);
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////

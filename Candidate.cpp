@@ -6,12 +6,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-Candidate::Candidate(int nIndex, 
-	FibroblastPatchVector vecFibroblastPatch)
-	//int nHStart[NUMBER_OF_FIBROBLAST_PATCHES], 
-	//int nWStart[NUMBER_OF_FIBROBLAST_PATCHES], 
-	//int nHEnd[NUMBER_OF_FIBROBLAST_PATCHES], 
-	//int nWEnd[NUMBER_OF_FIBROBLAST_PATCHES])
+Candidate::Candidate(int nIndex, FibroblastPatchVector vecFibroblastPatch)
 {
 	// Create the mats.
 	m_pFibroblastMat = CreateMat();	
@@ -24,16 +19,6 @@ Candidate::Candidate(int nIndex,
 	memset(m_cCandidateFullName, 0, sizeof(m_cCandidateFullName));
 	m_vecFibroblastPatch = vecFibroblastPatch;
 	
-	/*
-	for(int i = 0; i < NUMBER_OF_FIBROBLAST_PATCHES; ++i)
-	{
-		m_nHStart[i] = nHStart[i];
-		m_nWStart[i] = nWStart[i];
-		m_nHEnd[i] = nHEnd[i];
-		m_nWEnd[i] = nWEnd[i];
-	}	
-	*/
-
 	// Now create the fibroblats.
 	CreateFibroblastBorders();
 	CreateFibroblastPatch();
@@ -98,7 +83,7 @@ char* Candidate::GetFullName()
 		sprintf(temp,"%s", m_cCandidateFullName);
 		if(iPatch == 0)
 		{
-			sprintf(m_cCandidateFullName,"(%d,%d) -> (%d,%d)", 
+			sprintf(m_cCandidateFullName,"(%d,%d)-(%d,%d)", 
 				m_vecFibroblastPatch[iPatch].m_nHStart, 
 				m_vecFibroblastPatch[iPatch].m_nWStart, 
 				m_vecFibroblastPatch[iPatch].m_nHEnd,
@@ -106,7 +91,7 @@ char* Candidate::GetFullName()
 		}
 		else
 		{
-			sprintf(m_cCandidateFullName,"%s + (%d,%d) -> (%d,%d)", temp, 
+			sprintf(m_cCandidateFullName,"%s -&- (%d,%d)-(%d,%d)", temp, 
 				m_vecFibroblastPatch[iPatch].m_nHStart, 
 				m_vecFibroblastPatch[iPatch].m_nWStart, 
 				m_vecFibroblastPatch[iPatch].m_nHEnd,
