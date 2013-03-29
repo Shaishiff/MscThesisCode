@@ -35,7 +35,7 @@ const int MPI_RESULT_TAG = 4000;
 //////////////////////////////////////////////////////////////////////////////////////////
 
 #define Npop 20
-#define MaxIterations 2
+#define MaxIterations 50
 #define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate + 0.5)
 #define Nmates (Npop - NsurvivingPopulation)

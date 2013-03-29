@@ -27,6 +27,7 @@ private:
 	int ChooseRandomParent();
 	int Mutate(int nInValue);
 	void CreateRandomPopulation();
+	void CreateNextGeneration();
 	Candidate* CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex);
 	Candidate* CreateRandomCandidate(int nIndex);	
 	double CalculateTargetCoverage(double** pBestMatch);
@@ -48,7 +49,7 @@ private:
 	double** m_pTargetFibroblastMat;
 	unsigned long int* MinCost;
 	double* Rank;
-	vector<Candidate*> Population;
+	vector<Candidate*> m_population;
 	CSafeJobVector m_jobVector;
 	vector<char*> PastCandidates;
 	bool bLogToFileOnly;

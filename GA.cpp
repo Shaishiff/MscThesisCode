@@ -59,18 +59,18 @@ CGA::CGA()
 
 CGA::~CGA()
 {
-	delete m_pTargetMeasurement1;
+	delete [] m_pTargetMeasurement1;
 	m_pTargetMeasurement1 = NULL;
 	
-	delete m_pTargetMeasurement2;
+	delete [] m_pTargetMeasurement2;
 	m_pTargetMeasurement2 = NULL;
 	
 	DestroyMat(m_pTargetFibroblastMat);
 	
-	delete MinCost;
+	delete [] MinCost;
 	MinCost = NULL;
 	
-	delete Rank;
+	delete [] Rank;
 	Rank = NULL;
 }
 
@@ -191,13 +191,13 @@ void CGA::CreateJobs()
 	for (int nPopIndex = 0; nPopIndex < Npop; ++nPopIndex)
 	{			
 		Job* pJob1 = new Job();
-		pJob1->m_pCandidate = Population[nPopIndex];
+		pJob1->m_pCandidate = m_population[nPopIndex];
 		pJob1->m_nJobType = MPI_JOB_1_TAG;
 		pJob1->m_pResultsMat = pJob1->m_pCandidate->m_pResult1;
 		m_jobVector.AddJob(pJob1);
 		
 		Job* pJob2 = new Job();
-		pJob2->m_pCandidate = Population[nPopIndex];
+		pJob2->m_pCandidate = m_population[nPopIndex];
 		pJob2->m_nJobType = MPI_JOB_2_TAG;
 		pJob2->m_pResultsMat = pJob2->m_pCandidate->m_pResult2;
 		m_jobVector.AddJob(pJob2);
@@ -299,7 +299,7 @@ void CGA::ProcessResults()
 	LOG("ProcessResults started");
 	for (int nPopIndex = 0; nPopIndex < Npop; ++nPopIndex)
 	{
-		Candidate* pCandidate = Population[nPopIndex];
+		Candidate* pCandidate = m_population[nPopIndex];
 		ProcessResults(pCandidate);
 	}
 	LOG("ProcessResults ended");
@@ -329,7 +329,7 @@ void CGA::CreateRandomPopulation()
 	for(int iPop = 0; iPop < Npop; ++iPop)
 	{		
 		Candidate* pCandidate = CreateRandomCandidate(iPop);
-		Population.push_back(pCandidate);
+		m_population.push_back(pCandidate);
 		AddChildToPastCandidates(pCandidate);
 	}	
 }
@@ -453,16 +453,16 @@ bool CGA::IsNewChild(Candidate* pChild)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
-/*
+
 void CGA::ClearPopulation()
 {
 	for(int iPop = 0; iPop < Npop; ++iPop)
 	{
-		delete Population[iPop];		
+		delete m_population[iPop];		
 	}
-	Population.clear();
+	m_population.clear();
 }
-*/
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -489,29 +489,54 @@ void CGA::AddChildToPastCandidates(Candidate* pChild)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+void CGA::CreateNextGeneration()
+{
+	LOG("--");
+	LOG("Creating the next generation...");
+	LOG1("Need to create %d offsprings in total", Nmates);
+	LOG("--");
+	int iOffspring = 0;
+	while(iOffspring < Nmates)
+	{	
+		int nFirstParent = 0;
+		int nSecondParent = 0;
+		if(iOffspring != 0)
+		{
+			while(nFirstParent == nSecondParent)
+			{
+				nFirstParent = ChooseRandomParent();
+				nSecondParent = ChooseRandomParent();
+			}				
+		}
+		
+		int nNewCandidateIndex = NsurvivingPopulation + iOffspring;			
+		delete m_population[nNewCandidateIndex];
+		LOG4("Creating offspring %d (candidate #%d) from parents %d and %d", iOffspring+1, nNewCandidateIndex, nFirstParent, nSecondParent);
+		m_population[nNewCandidateIndex] = CreateChild(m_population[nFirstParent], m_population[nSecondParent], nNewCandidateIndex);
+		if(m_population[nNewCandidateIndex] != NULL) // Only if we got a new child we can continue.
+		{
+			++iOffspring;
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 Candidate* CGA::CreateChild(Candidate* pParent1, Candidate* pParent2, int nIndex)
 {
 	LOG2("Parent1, Candidate #%d: %s", pParent1->m_nIndex, pParent1->GetFullName());	
 	LOG2("Parent2, Candidate #%d: %s", pParent2->m_nIndex, pParent2->GetFullName());
-	FibroblastPatchVector vecFibroblastPatchVector;
-	int nHStart = 0;
-	int nWStart = 0;
-	int nHEnd = 0;
-	int nWEnd = 0;
+	FibroblastPatchVector vecFibroblastPatchVector;	
 	for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
 	{	
-		nHStart = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nHStart : pParent2->GetFibroblastPatch(iPatch).m_nHStart);
-		nWStart = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nWStart : pParent2->GetFibroblastPatch(iPatch).m_nWStart);
-		nHEnd = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nHEnd : pParent2->GetFibroblastPatch(iPatch).m_nHEnd);
-		nWEnd = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nWEnd : pParent2->GetFibroblastPatch(iPatch).m_nWEnd);
-		/*int nChosenParent = rand()%2;
-		nHStart[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nHStart[iPatch] : pParent2->m_nHStart[iPatch]);
-		nWStart[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWStart[iPatch] : pParent2->m_nWStart[iPatch]);
-		nHEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nHEnd[iPatch] : pParent2->m_nHEnd[iPatch]);
-		nWEnd[iPatch] = Mutate((nChosenParent == 1) ? pParent1->m_nWEnd[iPatch] : pParent2->m_nWEnd[iPatch]);*/
+		int nHStart = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nHStart : pParent2->GetFibroblastPatch(iPatch).m_nHStart);
+		int nWStart = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nWStart : pParent2->GetFibroblastPatch(iPatch).m_nWStart);
+		int nHEnd = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nHEnd : pParent2->GetFibroblastPatch(iPatch).m_nHEnd);
+		int nWEnd = Mutate((rand()%2 == 1) ? pParent1->GetFibroblastPatch(iPatch).m_nWEnd : pParent2->GetFibroblastPatch(iPatch).m_nWEnd);
 		AddSortedToPatchesVector(vecFibroblastPatchVector, FibroblastPatch(nHStart, nWStart, nHEnd, nWEnd));
 	}	
-	Candidate* pChild = new Candidate(nIndex, vecFibroblastPatchVector);//nHStart, nWStart, nHEnd, nWEnd);
+	Candidate* pChild = new Candidate(nIndex, vecFibroblastPatchVector);
 	LOG2("Child,   Candidate #%d: %s", pChild->m_nIndex, pChild->GetFullName());
 	
 	// Check if we already had this child.
@@ -590,230 +615,174 @@ void CGA::RunGA(int iAlgoIndex, double** pCombinedFibroblastMat)
 		return;
 	}
 	
-	//double** pCombinedFibroblastMat = CreateMat();
-	//for(int iAlgoIndex = 0; iAlgoIndex < 5; ++iAlgoIndex)
-	{		
-		LOG("***************************************");
-		LOG("***************************************");
-		LOG1("Starting algorithm run %d", iAlgoIndex);
-		LOG("***************************************");
-		LOG("***************************************");
-		for(int iMinCost=0; iMinCost < MaxIterations; ++iMinCost)
-		{
-			MinCost[iMinCost] = 0;
-		}
+	LOG("***************************************");
+	LOG("***************************************");
+	LOG1("Starting algorithm run %d", iAlgoIndex);
+	LOG("***************************************");
+	LOG("***************************************");
+	
+	// Create the starting population of candidates.
+	CreateRandomPopulation();
+	
+	// Create min cost file.
+	char minCostFileName[FILE_NAME_BUFFER_SIZE] = {0};
+	sprintf(minCostFileName, "%s/MinCost_%d.txt", LOG_FOLDER, iAlgoIndex);
+	FILE* pMinCostFile = fopen(minCostFileName, "w");
+	if(pMinCostFile != NULL)
+	{
+		fprintf(pMinCostFile, "Iteration | MinCost | Mat | Error | Coverage\n");
+		fclose(pMinCostFile);
+	}
 
-		// Create the starting population of candidates.
-		CreateRandomPopulation();
+	char matlabFileName[FILE_NAME_BUFFER_SIZE] = {0};
+	sprintf(matlabFileName, "%s/Matlab_%d.txt", LOG_FOLDER, iAlgoIndex);
+	FILE* pMatlabFile = fopen(matlabFileName, "w");
+	if(pMatlabFile != NULL)
+	{
+		fclose(pMatlabFile);
+	}
+	
+	// Start the loop.
+	LOG("------------------");
+	int nLastMinCostCounter = 0;
+	int nCurIteration = 0;
+	while(nCurIteration <= MaxIterations)
+	{
+		LOG2("Starting iteration #%d of algo run #%d", nCurIteration, iAlgoIndex);
+		LOG("------------------");
+		clock_t iterationStartingTime = clock();
+	
+		LOG("Candidates for this iteration:");
+		for(int iPop = 0; iPop < Npop; ++iPop)
+		{			
+			LOG2("Candidate #%d, %s", m_population[iPop]->m_nIndex, m_population[iPop]->GetFullName());
+		}
+	
+		// Process candidates - Execute the simulation with the backward model
+		// for each of candidates.
+		CreateJobs();
+		ProcessJobs();
 		
+		// Go over the results of the simulations and determine 
+		// the cost of each of candidates.
+		ProcessResults();
+
+		// Sort candidates according to the cost.
+		LOG("--");
+		LOG("Sorting the population...");
+		std::sort(m_population.begin(), m_population.end(), CandidateCompare);
 		for(int iPop = 0; iPop < Npop; ++iPop)
 		{
-			AddChildToPastCandidates(Population[iPop]);		
+			m_population[iPop]->m_nIndex = iPop;
+			LOG3("ProcessResults, current cost for candidate #%d, %s: %d", m_population[iPop]->m_nIndex, m_population[iPop]->GetFullName(), m_population[iPop]->m_cost);
 		}
 		
-		// Create min cost file.
-		char minCostFileName[FILE_NAME_BUFFER_SIZE] = {0};
-		sprintf(minCostFileName, "%s/MinCost_%d.txt", LOG_FOLDER, iAlgoIndex);
-		FILE* pMinCostFile = fopen(minCostFileName, "w");
+		// Write output files (for presentation and debugging).
+		unsigned long int nTotalCost = 0;
+		for(int iPop = 0; iPop < Npop; ++iPop)
+		{	
+			if(iPop == 0) // To save space of txt files...
+			{
+				char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
+				sprintf(riseTimeCandidateFileName, "BestRiseTimes/RiseTime_Itr%d_Indx%d_Prot1.txt", nCurIteration, iPop);
+				SaveMatToFile(m_population[iPop]->m_pResult1, riseTimeCandidateFileName);
+				sprintf(riseTimeCandidateFileName, "BestRiseTimes/RiseTime_Itr%d_Indx%d_Prot2.txt", nCurIteration, iPop);
+				SaveMatToFile(m_population[iPop]->m_pResult2, riseTimeCandidateFileName);
+			}
+			else
+			{
+				char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
+				sprintf(riseTimeCandidateFileName, "OtherRiseTimes/RiseTime_Itr%d_Indx%d_Prot1.txt", nCurIteration, iPop);
+				SaveMatToFile(m_population[iPop]->m_pResult1, riseTimeCandidateFileName);
+				sprintf(riseTimeCandidateFileName, "OtherRiseTimes/RiseTime_Itr%d_Indx%d_Prot2.txt", nCurIteration, iPop);
+				SaveMatToFile(m_population[iPop]->m_pResult2, riseTimeCandidateFileName);
+			}
+			nTotalCost += m_population[iPop]->m_cost;
+		}
+		double dAvgCost = nTotalCost/Npop;
+
+		// Update the min cost file.
+		MinCost[nCurIteration] = m_population[0]->m_cost;
+		LOG1("Avg Cost: %.3f", dAvgCost);
+		LOG2("Min Cost: %d for %s", MinCost[nCurIteration], m_population[0]->GetFullName());
+		int nError = CalculateError(m_population[0]->m_pFibroblastMat);
+		LOG1("The (geomatric) error for the best match is: %d", nError);
+		double dCoverage = CalculateTargetCoverage(m_population[0]->m_pFibroblastMat);
+		LOG1("The target coverage for the best match is: %.3f%%", dCoverage);
+		pMinCostFile = fopen(minCostFileName, "a");
 		if(pMinCostFile != NULL)
 		{
-			fprintf(pMinCostFile, "Iteration | MinCost | Mat | Error | Coverage\n");
+			fprintf(pMinCostFile, "%d | %d | %s | %d | %.3f\n", nCurIteration, MinCost[nCurIteration], m_population[0]->GetFullName(), nError, dCoverage);
 			fclose(pMinCostFile);
 		}
 
-		char matlabFileName[FILE_NAME_BUFFER_SIZE] = {0};
-		sprintf(matlabFileName, "%s/Matlab_%d.txt", LOG_FOLDER, iAlgoIndex);
-		FILE* pMatlabFile = fopen(matlabFileName, "w");
+		pMatlabFile = fopen(matlabFileName, "a");
 		if(pMatlabFile != NULL)
 		{
-			/*
-			fprintf(pMatlabFile, "\t%% %d | %d | %s | %d | %.3f\n", nCurIteration, MinCost[nCurIteration], Population[0]->GetFullName(), nError, dCoverage);
+			fprintf(pMatlabFile, "\t%% %d | %d | %s | %d | %.3f\n", nCurIteration, MinCost[nCurIteration], m_population[0]->GetFullName(), nError, dCoverage);
 			for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
 			{				
 				fprintf(pMatlabFile, "\tif(iPatch == %d)\n", iPatch);
-				fprintf(pMatlabFile, "\t\tfound_startIndexes = [%d,%d];\n", Population[0]->GetFibroblastPatch(iPatch).m_nHStart, Population[0]->GetFibroblastPatch(iPatch).m_nWStart);
-				fprintf(pMatlabFile, "\t\tfound_endIndexes = [%d,%d];\n", Population[0]->GetFibroblastPatch(iPatch).m_nHEnd, Population[0]->GetFibroblastPatch(iPatch).m_nWEnd);
+				fprintf(pMatlabFile, "\t\tfound_startIndexes = [%d,%d];\n", m_population[0]->GetFibroblastPatch(iPatch).m_nHStart, m_population[0]->GetFibroblastPatch(iPatch).m_nWStart);
+				fprintf(pMatlabFile, "\t\tfound_endIndexes = [%d,%d];\n", m_population[0]->GetFibroblastPatch(iPatch).m_nHEnd, m_population[0]->GetFibroblastPatch(iPatch).m_nWEnd);
 				fprintf(pMatlabFile, "\tend\n");				
 			}
-			*/
-			//fprintf(pMatlabFile, "\n%%----------------------------\n\n");
+			fprintf(pMatlabFile, "\n%%----------------------------\n\n");
 			fclose(pMatlabFile);
 		}
 		
-		// Start the loop.
-		LOG("------------------");
-		int nLastMinCostCounter = 0;
-		int nCurIteration = 0;
-		while(nCurIteration <= MaxIterations)
+		// Check break conditions.
+		if(MinCost[nCurIteration] == 0)
 		{
-			LOG2("Starting iteration #%d of algo run #%d", nCurIteration, iAlgoIndex);
-			LOG("------------------");
-			clock_t iterationStartingTime = clock();
-		
-			LOG("Candidates for this iteration:");
-			for(int iPop = 0; iPop < Npop; ++iPop)
-			{			
-				LOG2("Candidate #%d, %s", Population[iPop]->m_nIndex, Population[iPop]->GetFullName());
-			}
-		
-			// Process candidates - Execute the simulation with the backward model
-			// for each of candidates.
-			CreateJobs();
-			ProcessJobs();
-			
-			// Go over the results of the simulations and determine 
-			// the cost of each of candidates.
-			ProcessResults();
-
-			// Sort candidates according to the cost.
-			LOG("--");
-			LOG("Sorting the population...");
-			std::sort(Population.begin(), Population.end(), CandidateCompare);
-			for(int iPop = 0; iPop < Npop; ++iPop)
-			{
-				Population[iPop]->m_nIndex = iPop;
-				LOG3("ProcessResults, current cost for candidate #%d, %s: %d", Population[iPop]->m_nIndex, Population[iPop]->GetFullName(), Population[iPop]->m_cost);
-			}
-			
-			// Write output files (for presentation and debugging).
-			unsigned long int nTotalCost = 0;
-			for(int iPop = 0; iPop < Npop; ++iPop)
-			{	
-				if(iPop == 0) // To save space of txt files...
-				{
-					char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-					sprintf(riseTimeCandidateFileName, "BestRiseTimes/RiseTime_Itr%d_Indx%d_Prot1.txt", nCurIteration, iPop);
-					SaveMatToFile(Population[iPop]->m_pResult1, riseTimeCandidateFileName);
-					sprintf(riseTimeCandidateFileName, "BestRiseTimes/RiseTime_Itr%d_Indx%d_Prot2.txt", nCurIteration, iPop);
-					SaveMatToFile(Population[iPop]->m_pResult2, riseTimeCandidateFileName);
-				}
-				else
-				{
-					char riseTimeCandidateFileName[FILE_NAME_BUFFER_SIZE] = {0};
-					sprintf(riseTimeCandidateFileName, "OtherRiseTimes/RiseTime_Itr%d_Indx%d_Prot1.txt", nCurIteration, iPop);
-					SaveMatToFile(Population[iPop]->m_pResult1, riseTimeCandidateFileName);
-					sprintf(riseTimeCandidateFileName, "OtherRiseTimes/RiseTime_Itr%d_Indx%d_Prot2.txt", nCurIteration, iPop);
-					SaveMatToFile(Population[iPop]->m_pResult2, riseTimeCandidateFileName);
-				}
-				nTotalCost += Population[iPop]->m_cost;
-			}
-			double dAvgCost = nTotalCost/Npop;
-
-			// Update the min cost file.
-			MinCost[nCurIteration] = Population[0]->m_cost;
-			LOG1("Avg Cost: %.3f", dAvgCost);
-			LOG2("Min Cost: %d for %s", MinCost[nCurIteration], Population[0]->GetFullName());
-			int nError = CalculateError(Population[0]->m_pFibroblastMat);
-			LOG1("The (geomatric) error for the best match is: %d", nError);
-			double dCoverage = CalculateTargetCoverage(Population[0]->m_pFibroblastMat);
-			LOG1("The target coverage for the best match is: %.3f%%", dCoverage);
-			pMinCostFile = fopen(minCostFileName, "a");
-			if(pMinCostFile != NULL)
-			{
-				fprintf(pMinCostFile, "%d | %d | %s | %d | %.3f\n", nCurIteration, MinCost[nCurIteration], Population[0]->GetFullName(), nError, dCoverage);
-				fclose(pMinCostFile);
-			}
-
-			pMatlabFile = fopen(matlabFileName, "a");
-			if(pMatlabFile != NULL)
-			{
-				fprintf(pMatlabFile, "\t%% %d | %d | %s | %d | %.3f\n", nCurIteration, MinCost[nCurIteration], Population[0]->GetFullName(), nError, dCoverage);
-				for(int iPatch = 0; iPatch < NUMBER_OF_FIBROBLAST_PATCHES; ++iPatch)
-				{				
-					fprintf(pMatlabFile, "\tif(iPatch == %d)\n", iPatch);
-					fprintf(pMatlabFile, "\t\tfound_startIndexes = [%d,%d];\n", Population[0]->GetFibroblastPatch(iPatch).m_nHStart, Population[0]->GetFibroblastPatch(iPatch).m_nWStart);
-					fprintf(pMatlabFile, "\t\tfound_endIndexes = [%d,%d];\n", Population[0]->GetFibroblastPatch(iPatch).m_nHEnd, Population[0]->GetFibroblastPatch(iPatch).m_nWEnd);
-					fprintf(pMatlabFile, "\tend\n");				
-				}
-				fprintf(pMatlabFile, "\n%%----------------------------\n\n");
-				fclose(pMatlabFile);
-			}
-			
-			// Check break conditions.
-			if(MinCost[nCurIteration] == 0)
-			{
-				// This won't really happen...
-				LOG("Reached zero cost. Breaking the iterations !");
-				break;
-			}
-			if(nCurIteration != 0)
-			{
-				if(MinCost[nCurIteration] == MinCost[nCurIteration-1])
-				{
-					nLastMinCostCounter++;				
-					if(nLastMinCostCounter == MAX_REPEATING_COSTS_FOR_DEAD_END)
-					{
-						LOG("Reached a dead end in the costs. Breaking the iterations !");
-						break;
-					}				
-				}
-				else
-				{
-					nLastMinCostCounter = 0;
-				}			
-			}
-			++nCurIteration;
-			
-			clock_t iterationEndingTime = clock();
-			double iterationRunningTime = (iterationEndingTime - iterationStartingTime)/double(CLOCKS_PER_SEC);
-			LOG1("Iteration start: %d", iterationStartingTime);
-			LOG1("Iteration end: %d", iterationEndingTime);
-			LOG1("Iteration duration: %.3f seconds", iterationRunningTime);
-					
-			// Create the next generation.
-			LOG("--");
-			LOG("Creating the next generation...");
-			LOG1("Need to create %d offsprings in total", Nmates);
-			LOG("--");
-			int iOffspring = 0;
-			while(iOffspring < Nmates)
-			{	
-				int nFirstParent = 0;
-				int nSecondParent = 0;
-				if(iOffspring != 0)
-				{
-					while(nFirstParent == nSecondParent)
-					{
-						nFirstParent = ChooseRandomParent();
-						nSecondParent = ChooseRandomParent();
-					}				
-				}
-				
-				int nNewCandidateIndex = NsurvivingPopulation + iOffspring;			
-				delete Population[nNewCandidateIndex];
-				LOG4("Creating offspring %d (candidate #%d) from parents %d and %d", iOffspring+1, nNewCandidateIndex, nFirstParent, nSecondParent);
-				Population[nNewCandidateIndex] = CreateChild(Population[nFirstParent], Population[nSecondParent], nNewCandidateIndex);
-				if(Population[nNewCandidateIndex] != NULL) // Only if we got a new child we can continue.
-				{
-					++iOffspring;
-				}
-			}
-
-			LOG("------------------");
+			// This won't really happen...
+			LOG("Reached zero cost. Breaking the iterations !");
+			break;
 		}
-		
-		// Finished executing the GA.
-		LOG2("The best match found is: %s, with cost: %d", Population[0]->GetFullName(), MinCost[nCurIteration]);
-		int nError = CalculateError(Population[0]->m_pFibroblastMat);
-		LOG1("The error for this match is: %d", nError);
-		
-		
-		/*for (int iH = 0; iH < Nh_with_border; ++iH)
+		if(nCurIteration != 0)
 		{
-			for (int iW = 0; iW < Nw_with_border; ++iW)
-			{								
-				pCombinedFibroblastMat[iH][iW] += Population[0]->m_pFibroblastMat[iH][iW];
+			if(MinCost[nCurIteration] == MinCost[nCurIteration-1])
+			{
+				nLastMinCostCounter++;				
+				if(nLastMinCostCounter == MAX_REPEATING_COSTS_FOR_DEAD_END)
+				{
+					LOG("Reached a dead end in the costs. Breaking the iterations !");
+					break;
+				}				
 			}
-		}*/
-		/*
-		char combinedFibroblastFileName[FILE_NAME_BUFFER_SIZE] = {0};
-		sprintf(combinedFibroblastFileName, "%s/CombinedFibroblasts.txt", LOG_FOLDER);
-		SaveMatToFileWithFullNameIntFormat(pCombinedFibroblastMat, combinedFibroblastFileName);
-		*/
-		//ClearPopulation();
-		ClearPastCandidates();
-	}		
-	//DestroyMat(pCombinedFibroblastMat);
+			else
+			{
+				nLastMinCostCounter = 0;
+			}			
+		}
+		++nCurIteration;
+		
+		clock_t iterationEndingTime = clock();
+		double iterationRunningTime = (iterationEndingTime - iterationStartingTime)/double(CLOCKS_PER_SEC);
+		LOG1("Iteration start: %d", iterationStartingTime);
+		LOG1("Iteration end: %d", iterationEndingTime);
+		LOG1("Iteration duration: %.3f seconds", iterationRunningTime);
+				
+		// Create the next generation.
+		CreateNextGeneration();
+
+		LOG("------------------");
+	}
+	
+	// Finished executing the GA.
+	LOG2("The best match found is: %s, with cost: %d", m_population[0]->GetFullName(), MinCost[nCurIteration]);
+	int nError = CalculateError(m_population[0]->m_pFibroblastMat);
+	LOG1("The error for this match is: %d", nError);
+	
+	for (int iH = 0; iH < Nh_with_border; ++iH)
+	{
+		for (int iW = 0; iW < Nw_with_border; ++iW)
+		{								
+			pCombinedFibroblastMat[iH][iW] += m_population[0]->m_pFibroblastMat[iH][iW];
+		}
+	}
+	
+	ClearPopulation();
+	ClearPastCandidates();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
