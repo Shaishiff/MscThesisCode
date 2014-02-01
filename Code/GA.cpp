@@ -80,15 +80,18 @@ CGA::~CGA()
 
 #define MAX_FILE_ELEMENT_LENGTH 10
 
-bool ReadIntoArray(ifstream& myfile, double** arr)
+bool CGA::ReadIntoArray(ifstream& myfile, double** arr)
 {
+	double dValidation = 0.0;
 	int iH = 1;
     int iW = 1;
 	char s[MAX_FILE_ELEMENT_LENGTH] = {0};
 	while(!myfile.eof())
     {
 		myfile.getline(s, MAX_FILE_ELEMENT_LENGTH, ' ');
+		//LOG3("Read Line (%d,%d): %s", iW, iH, s);
 		arr[iH][iW] = atof(s);
+		dValidation += atof(s);
 		iW++;
 		if(iW == Nw+1)
 		{
@@ -100,7 +103,7 @@ bool ReadIntoArray(ifstream& myfile, double** arr)
 			iW = 1;
 		}
     }
-	return false;
+	return (dValidation > 1000.0);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -108,75 +111,109 @@ bool ReadIntoArray(ifstream& myfile, double** arr)
 
 // We read the rise time matrix of the forward model from the files and
 // store it in our measurement vectors.
-bool CGA::ReadTargetMeasurements()
+bool CGA::ReadTargetMeasurements(char* target, char* targetResults)
 {
 	LOG("ReadTargetMeasurements started");
     ifstream myfile;
+    char filePath[FILE_NAME_BUFFER_SIZE] = {0};
 
 	// Reading the target fibroblast mat.
-	LOG("Opening file TargetFibroblastMat.txt");
-	myfile.open("TargetFibroblastMat.txt");
+	sprintf(filePath, "%s/TargetFibroblastMat.txt", target);
+	LOG1("Opening file %s", filePath);
+	myfile.open(filePath);
 	if(!myfile.is_open())
     {
-    	LOG("Failed to open file TargetFibroblastMat.txt");
+    	LOG1("Failed to open file %s", filePath);
         return false;
     }
     if(!ReadIntoArray(myfile, m_pTargetFibroblastMat))
 	{
-		LOG("Failed to read array out of file TargetFibroblastMat.txt");
+		LOG1("Failed to read array out of file %s", filePath);
         return false;
 	}
 	myfile.close();
-	//SaveMatToFile(m_pTargetFibroblastMat, "ReadTargetFibroblastMat.txt");
+	SaveMatToFile(m_pTargetFibroblastMat, "ReadTargetFibroblastMat.txt");
 
 	// Use this mat to read the rise time and then measure on the edges.
 	double** arr = CreateMat();
 
 	// Reading the first protocol measurements.
-	LOG("Opening file TargetFibroblastMatResults1.txt");
-	myfile.open("TargetFibroblastMatResults1.txt");
+	sprintf(filePath, "%s/%s1.txt", target, targetResults);
+	LOG1("Opening file %s", filePath);
+	myfile.open(filePath);
 	if(!myfile.is_open())
     {
-    	LOG("Failed to open file TargetFibroblastMatResults1.txt");
+    	LOG1("Failed to open file %s", filePath);
 		DestroyMat(arr);
         return false;
     }
     if(!ReadIntoArray(myfile, arr))
 	{
-		LOG("Failed to read array out of file TargetFibroblastMatResults1.txt");
+		LOG1("Failed to read array out of file %s", filePath);
 		DestroyMat(arr);
         return false;
 	}
-	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults1.txt");
+	SaveMatToFile(arr, "ReadTargetFibroblastMatResults1.txt");
 	for (int iW = 1; iW <= Nw; ++iW)
 	{
 		m_pTargetMeasurement1[iW] = arr[Nh-MeasurementMarginIndexes][iW] - arr[MeasurementMarginIndexes + 1][iW];
-		//LOG3("Reading target measurements Prot1, (%d,%d): %.3f", Nh-MeasurementMarginIndexes, iW, m_pTargetMeasurement1[iW]);
+		LOG3("Reading target measurements Prot1, (%d,%d): %.3f", Nh-MeasurementMarginIndexes, iW, m_pTargetMeasurement1[iW]);
 	}
 	myfile.close();
 
+	FILE* pTempLogFile1 = fopen(strLogFileName, "a");
+	if(pTempLogFile1 != NULL)
+	{
+		printf("TargetMeasurments1:\n");
+		fprintf(pTempLogFile1, "TargetMeasurments1:\n");
+		for (int iW = 1; iW <= Nw; ++iW)
+		{
+			printf("%.3f ", m_pTargetMeasurement1[iW]);
+			fprintf(pTempLogFile1, "%.3f ", m_pTargetMeasurement1[iW]);
+		}
+		printf("\n");
+		fprintf(pTempLogFile1, "\n");
+		fclose(pTempLogFile1);
+	}
+
 	// Reading the second protocol measurements.
-	LOG("Opening file TargetFibroblastMatResults2.txt");
-	myfile.open("TargetFibroblastMatResults2.txt");
-    if(!myfile.is_open())
+	sprintf(filePath, "%s/%s2.txt", target, targetResults);
+	LOG1("Opening file %s", filePath);
+	myfile.open(filePath);
+	if(!myfile.is_open())
     {
-    	LOG("Failed to open file TargetFibroblastMatResults2.txt");
+    	LOG1("Failed to open file %s", filePath);
 		DestroyMat(arr);
         return false;
     }
     if(!ReadIntoArray(myfile, arr))
 	{
-		LOG("Failed to read array out of file TargetFibroblastMatResults2.txt");
+		LOG1("Failed to read array out of file %s", filePath);
 		DestroyMat(arr);
         return false;
 	}
-	//SaveMatToFile(arr, "ReadTargetFibroblastMatResults2.txt");
+	SaveMatToFile(arr, "ReadTargetFibroblastMatResults2.txt");
 	for (int iH = 1; iH <= Nh; ++iH)
 	{
 		m_pTargetMeasurement2[iH] = arr[iH][Nw-MeasurementMarginIndexes] - arr[iH][MeasurementMarginIndexes + 1];
-		//LOG3("Reading target measurements Prot2, (%d,%d): %.3f", iH, Nw-MeasurementMarginIndexes, m_pTargetMeasurement2[iH]);
+		LOG3("Reading target measurements Prot2, (%d,%d): %.3f", iH, Nw-MeasurementMarginIndexes, m_pTargetMeasurement2[iH]);
 	}
 	myfile.close();
+
+	FILE* pTempLogFile2 = fopen(strLogFileName, "a");
+	if(pTempLogFile2 != NULL)
+	{
+		printf("TargetMeasurments2:\n");
+		fprintf(pTempLogFile2, "TargetMeasurments2:\n");
+		for (int iH = 1; iH <= Nh; ++iH)
+		{
+			printf("%.3f ", m_pTargetMeasurement2[iH]);
+			fprintf(pTempLogFile2, "%.3f ", m_pTargetMeasurement2[iH]);
+		}
+		printf("\n");
+		fprintf(pTempLogFile2, "\n");
+		fclose(pTempLogFile2);
+	}
 
 	DestroyMat(arr);
 
@@ -258,9 +295,11 @@ void CGA::ProcessResults(Candidate* pCandidate)
 	int nCost1 = 0;
 	int nCost2 = 0;
 	pCandidate->m_cost = 0;
+	int nWSamplePoints = 0;
+	int nHSamplePoints = 0;
 
 	// Calculate cost from result 1.
-	for (int iW = 1; iW < Nw+1; iW += SAMPLING_INTERVALS)
+	for (int iW = 1; iW < Nw+1; iW += m_nSamplingInterval)
 	{
 		double dCandidateResult = pCandidate->m_pResult1[Nh-MeasurementMarginIndexes][iW] - pCandidate->m_pResult1[MeasurementMarginIndexes + 1][iW];
 		int nCandidateResult = (int)ceil(dCandidateResult * 1000);
@@ -268,12 +307,14 @@ void CGA::ProcessResults(Candidate* pCandidate)
 		int nCost = std::abs(nCandidateResult - nTargetResult);
 		pCandidate->m_cost += (unsigned long int)nCost;
 		nCost1 += (unsigned long int)nCost;
+		nWSamplePoints++;
 		//LOG5("ProcessResults1 at %d, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", iW, nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
 	}
 	//LOG1("ProcessResults1, total cost for protocol1: %d", nCost1);
+	LOG1("ProcessResults, #of sample points(W): %d", nWSamplePoints);
 
 	// Calculate cost from result 2.
-	for (int iH = 1; iH < Nh+1; iH += SAMPLING_INTERVALS)
+	for (int iH = 1; iH < Nh+1; iH += m_nSamplingInterval)
 	{
 		double dCandidateResult = pCandidate->m_pResult2[iH][Nw-MeasurementMarginIndexes] - pCandidate->m_pResult2[iH][MeasurementMarginIndexes + 1];
 		int nCandidateResult = (int)ceil(dCandidateResult * 1000);
@@ -281,9 +322,11 @@ void CGA::ProcessResults(Candidate* pCandidate)
 		int nCost = std::abs(nCandidateResult - nTargetResult);
 		pCandidate->m_cost += (unsigned long int)nCost;
 		nCost2 += (unsigned long int)nCost;
+		nHSamplePoints++;
 		//LOG5("ProcessResults2 at %d, nCandidateResult: %d, nTargetResult: %d, diff: %d, nCost: %d", iH, nCandidateResult, nTargetResult, nCandidateResult - nTargetResult, nCost);
 	}
 	//LOG1("ProcessResults2, total cost for protocol2: %d", nCost2);
+	LOG1("ProcessResults, #of sample points(H): %d", nHSamplePoints);
 
 	LOG3("- ProcessResults, current cost for candidate #%d, %s: %u", pCandidate->m_nIndex, pCandidate->GetFullName(), pCandidate->m_cost);
 }
@@ -603,10 +646,11 @@ double CGA::CalculateTargetCoverage(double** pBestMatch)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void CGA::RunGA(int iAlgoIndex, double** pCombinedFibroblastMat)
+void CGA::RunGA(char* target, char* targetResults, int iAlgoIndex, int nSamplingInterval, int nNoise, double** pCombinedFibroblastMat)
 {
 	LOG("Init GA...");
-	if(!ReadTargetMeasurements())
+	m_nSamplingInterval = nSamplingInterval;
+	if(!ReadTargetMeasurements(target, targetResults))
 	{
 		LOG("Failed to read the target measurements. Aborting.");
 		return;
@@ -614,7 +658,8 @@ void CGA::RunGA(int iAlgoIndex, double** pCombinedFibroblastMat)
 
 	LOG("***************************************");
 	LOG("***************************************");
-	LOG1("Starting algorithm run %d", iAlgoIndex);
+	LOG1("Target: %s", target);
+	LOG2("Starting algorithm run %d, sampling every %d", iAlgoIndex, nSamplingInterval);
 	LOG("***************************************");
 	LOG("***************************************");
 
@@ -623,7 +668,7 @@ void CGA::RunGA(int iAlgoIndex, double** pCombinedFibroblastMat)
 
 	// Create min cost file.
 	char minCostFileName[FILE_NAME_BUFFER_SIZE] = {0};
-	sprintf(minCostFileName, "%s/MinCost_%d.txt", LOG_FOLDER, iAlgoIndex);
+	sprintf(minCostFileName, "%s/%s_MinCost_Noise=%d_SNRdb_%d_samp_%d.txt", LOG_FOLDER, target, nNoise, iAlgoIndex, nSamplingInterval);
 	FILE* pMinCostFile = fopen(minCostFileName, "w");
 	if(pMinCostFile != NULL)
 	{
@@ -632,7 +677,7 @@ void CGA::RunGA(int iAlgoIndex, double** pCombinedFibroblastMat)
 	}
 
 	char matlabFileName[FILE_NAME_BUFFER_SIZE] = {0};
-	sprintf(matlabFileName, "%s/Matlab_%d.txt", LOG_FOLDER, iAlgoIndex);
+	sprintf(matlabFileName, "%s/%s_Matlab_Noise=%d_SNRdb_%d_samp_%d.txt", LOG_FOLDER, target, nNoise, iAlgoIndex, nSamplingInterval);
 	FILE* pMatlabFile = fopen(matlabFileName, "w");
 	if(pMatlabFile != NULL)
 	{
@@ -645,7 +690,7 @@ void CGA::RunGA(int iAlgoIndex, double** pCombinedFibroblastMat)
 	int nCurIteration = 0;
 	while(nCurIteration <= MaxIterations)
 	{
-		LOG2("Starting iteration #%d of algo run #%d", nCurIteration, iAlgoIndex);
+		LOG3("Starting iteration #%d of algo run #%d sampling every %d", nCurIteration, iAlgoIndex, nSamplingInterval);
 		LOG("------------------");
 		clock_t iterationStartingTime = clock();
 
@@ -785,6 +830,7 @@ void CGA::RunGA(int iAlgoIndex, double** pCombinedFibroblastMat)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef TESTING
 void CGA::Test()
 {
 	//for(double dDiff = -0.0000020; dDiff <= 0.0000020; dDiff += 0.0000001)
@@ -872,6 +918,7 @@ void CGA::Test()
 
 	}
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////

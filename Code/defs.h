@@ -39,7 +39,7 @@ const int MPI_RESULT_TAG = 4000;
 #define SelectionRate 0.4
 #define NsurvivingPopulation (int)floor(Npop*SelectionRate + 0.5)
 #define Nmates (Npop - NsurvivingPopulation)
-#define SAMPLING_INTERVALS	1
+//#define SAMPLING_INTERVALS	32
 #define MAX_REPEATING_COSTS_FOR_DEAD_END	20
 
 //////////////////////////////////////////////////////////////////////////////////////////

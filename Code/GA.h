@@ -12,14 +12,15 @@ class CGA
 public:
 	CGA();
 	~CGA();
-	void RunGA(int iAlgoIndex, double** pCombinedFibroblastMat);
+	void RunGA(char* target, char* targetResults, int iAlgoIndex, int nSamplingInterval, int nNoise, double** pCombinedFibroblastMat);
 	void Test();
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
 private:
-	bool ReadTargetMeasurements();
+	bool ReadIntoArray(ifstream& myfile, double** arr);
+	bool ReadTargetMeasurements(char* target, char* targetResults);
 	void CreateJobs();
 	void ProcessJobs();
 	void ProcessResults();
@@ -57,6 +58,7 @@ private:
 	vector<Job> m_jobVector;
 	vector<char*> PastCandidates;
 	bool bLogToFileOnly;
+	int m_nSamplingInterval;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
