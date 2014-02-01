@@ -2,7 +2,7 @@
 mpiCC = /usr/local/intel/impi/3.2.0.011/bin64/mpicxx
 mpiRun = /usr/local/intel/impi/3.2.0.011/bin64/mpirun
 mpd = /usr/local/intel/impi/3.2.0.011/bin64/mpd
-INCL = 
+INCL =
 LIBS = -lglut -lGLU -lGL -lX11 -lXmu -lpthread -Wno-deprecated
 OPT  = -O3
 
@@ -13,7 +13,7 @@ exec: test
 	mkdir /a/home/cc/students/enginer/shaishif/Output/BestRiseTimes
 	mkdir /a/home/cc/students/enginer/shaishif/Output/OtherRiseTimes
 	mkdir /a/home/cc/students/enginer/shaishif/Output/ModelLogs
-	${mpiRun} -m ${mpd} --rsh=/usr/bin/ssh -n 40 /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe
+	${mpiRun} -m ${mpd} --rsh=/usr/bin/ssh -n 41 /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe
 
 test: Candidate.cpp SBModel.cpp FkModel.cpp GA.cpp Log.cpp MpiMain.cpp
 	${mpiCC} Mat.cpp safeJobVector.cpp Candidate.cpp SBModel.cpp FkModel.cpp GA.cpp Log.cpp MpiMain.cpp -g -o /a/home/cc/students/enginer/shaishif/GA_binary/GA.exe ${OPT} ${INCL} ${LIBS}
