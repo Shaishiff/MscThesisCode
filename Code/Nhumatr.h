@@ -73,7 +73,7 @@ double g_initial_condition_state_vars[STATE_VAR_COUNT] = {0.0};
 void ReadStateVariablesInitialConditionFromFile()
 {
 	// Reading initial conditions
-	FILE* pFile = fopen("..\\msc_thesis_c_code\\Ninit_chol_la.d","r");
+	FILE* pFile = fopen("..\\msc_thesis_c_code\\code\\Ninit_chol_la.d","r");
 	if(pFile == NULL)
 	{
 		throw;
