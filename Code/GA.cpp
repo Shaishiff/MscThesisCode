@@ -157,6 +157,7 @@ bool CGA::ReadTargetMeasurements(char* target, char* targetResults)
 	for (int iW = 1; iW <= Nw; ++iW)
 	{
 		m_pTargetMeasurement1[iW] = arr[Nh-MeasurementMarginIndexes][iW] - arr[MeasurementMarginIndexes + 1][iW];
+		m_pTargetMeasurement1[iW] = m_pTargetMeasurement1[iW] < 0.0 ? 0.0 : m_pTargetMeasurement1[iW];
 		LOG3("Reading target measurements Prot1, (%d,%d): %.3f", Nh-MeasurementMarginIndexes, iW, m_pTargetMeasurement1[iW]);
 	}
 	myfile.close();
@@ -196,6 +197,7 @@ bool CGA::ReadTargetMeasurements(char* target, char* targetResults)
 	for (int iH = 1; iH <= Nh; ++iH)
 	{
 		m_pTargetMeasurement2[iH] = arr[iH][Nw-MeasurementMarginIndexes] - arr[iH][MeasurementMarginIndexes + 1];
+		m_pTargetMeasurement2[iH] = m_pTargetMeasurement2[iH] < 0.0 ? 0.0 : m_pTargetMeasurement2[iH];
 		LOG3("Reading target measurements Prot2, (%d,%d): %.3f", iH, Nw-MeasurementMarginIndexes, m_pTargetMeasurement2[iH]);
 	}
 	myfile.close();

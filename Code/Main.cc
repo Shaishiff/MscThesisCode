@@ -16,17 +16,26 @@
 #define RISE_TIME_VM_THRESHOLD (-20.0)
 
 // Fibroblasts patches.
-#define FIBROBLAST_PATCHES 4
+#define FIBROBLAST_PATCHES 2
 
-#define FIBROBLAST_H_START_PATCH_0 51
-#define FIBROBLAST_H_END_PATCH_0 70
-#define FIBROBLAST_W_START_PATCH_0 51
-#define FIBROBLAST_W_END_PATCH_0 80
+// (43_43) - (48_48)_ + _(93_93) - (98_98): Done
+// (41_41) - (50_50)_ + _(91_91) - (100_100): Done
+// (36_36) - (55_55)_ + _(86_86) - (105_105): Done
+// (31_31) - (60_60)_ + _(81_81) - (110_110): Done
+// (26_26) - (65_65)_ + _(76_76) - (115_115): Done
+// (22_22) - (69_69)_ + _(72_72) - (119_119): Done
 
-#define FIBROBLAST_H_START_PATCH_1 0
-#define FIBROBLAST_H_END_PATCH_1 0
-#define FIBROBLAST_W_START_PATCH_1 0
-#define FIBROBLAST_W_END_PATCH_1 0
+#define FIBROBLAST_H_START_PATCH_0 36
+#define FIBROBLAST_W_START_PATCH_0 FIBROBLAST_H_START_PATCH_0
+
+#define FIBROBLAST_H_END_PATCH_0 55
+#define FIBROBLAST_W_END_PATCH_0 FIBROBLAST_H_END_PATCH_0
+
+#define FIBROBLAST_H_START_PATCH_1 86
+#define FIBROBLAST_W_START_PATCH_1 FIBROBLAST_H_START_PATCH_1
+
+#define FIBROBLAST_H_END_PATCH_1 105
+#define FIBROBLAST_W_END_PATCH_1 FIBROBLAST_H_END_PATCH_1 
 
 #define FIBROBLAST_H_START_PATCH_2 0
 #define FIBROBLAST_H_END_PATCH_2 0
@@ -61,6 +70,7 @@
 // Space parameters
 #define dW 0.01 // mm/node
 #define dH 0.01 // mm/node
+#define dZ 0.01 // mm/node
 #define W 142
 #define H 142
 
@@ -89,6 +99,12 @@ state_variables* g_pStateVars = (state_variables*)malloc(W*H*sizeof(state_variab
 double* g_pStimulation = (double*)malloc(W*H*sizeof(double));
 double* g_pRiseTimeMat = (double*)malloc(W*H*sizeof(double));
 
+/*
+double* g_pGardientX = (double*)malloc(W*H*sizeof(double));
+double* g_pGardientY = (double*)malloc(W*H*sizeof(double));
+double* g_pExtraCellularV = (double*)malloc(W*H*sizeof(double));
+double* g_pExtraCellularRiseTimeMat = (double*)malloc(W*H*sizeof(double));
+*/
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -210,6 +226,31 @@ void SaveModelOutputToFile2(double sim_time, int nProtocol)
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
+void SaveModelOutputToFile3(double sim_time, int nProtocol)
+{
+	char fileName[1024] = {0};
+	sprintf(fileName, "Output\\ModelLogs\\Prot%d\\ModelOutput_crunch_time_at_%.3f.txt", nProtocol, sim_time);
+	FILE* pFile = fopen(fileName, "w");
+	if(pFile == NULL)
+	{
+		return;
+	}
+
+	for(int i = 1; i < H-1; i++)
+	{	
+		for(int j = 1; j < W-1; j++)
+		{
+			fprintf(pFile, "%f ", g_pStateVars[i*H + j].V);
+		}
+		fprintf(pFile, "\n");
+	}	
+	fclose(pFile);
+	pFile = NULL;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
 void SaveFibroblastsToFile()
 {
 	char fileName[1024] = {0};
@@ -318,6 +359,7 @@ void CreateFibroblastBorders()
 
 void CreateFibroblastPatch()
 {
+#if FIBROBLAST_PATCHES
 	int nHStart[FIBROBLAST_PATCHES] = {0};
 	int nHEnd[FIBROBLAST_PATCHES] = {0};
 	int nWStart[FIBROBLAST_PATCHES] = {0};
@@ -353,11 +395,12 @@ void CreateFibroblastPatch()
 			}
 		}
 	}
-	
+#endif
+
 	if(FIBROBLAST_RADIUS > 0)
 	{
 		START_LOOP		
-			double dRadius = sqrt(pow(double(FIBROBLAST_H_CENTER - j), int(2)) + pow(double(FIBROBLAST_W_CENTER - i), int(2)));
+		double dRadius = sqrt(pow(double(FIBROBLAST_H_CENTER - j), int(2)) + pow(double(FIBROBLAST_W_CENTER - i), int(2)));
 		if(dRadius <= FIBROBLAST_RADIUS)
 		{
 			g_pFibroblastMat[CUR_INDEX] = 1.0;
@@ -435,6 +478,7 @@ void InitRiseTimeMat()
 
 int main(int argc, char *argv[])
 {		
+	clock_t total_program_starting_time = clock();
 	for(int iProtocol = 1; iProtocol <= 2; ++iProtocol)
 	{
 		printf("\n*******************\nStarted protocol %d\n*******************\n\n", iProtocol);
@@ -462,6 +506,11 @@ int main(int argc, char *argv[])
 		for (double sim_time = 0.0; sim_time < (MAX_SIMULATION_TIME + dt); sim_time += dt) 
 		{	
 			SaveModelOutputToFile2(sim_time, iProtocol);
+
+			if (sim_time >= 28.0)
+			{
+				SaveModelOutputToFile3(sim_time, iProtocol);
+			}
 
 			if (sim_time >= dNextTimeToSaveOutput)
 			{
@@ -527,11 +576,60 @@ int main(int argc, char *argv[])
 						g_pRiseTimeMat[CUR_INDEX] = sim_time - dFirstRiseTime;
 					}
 				}
-			END_LOOP		
+			END_LOOP
+
+			/*
+			START_LOOP
+				if(j != 0 && j != (H-1))
+				{
+					g_pGardientX[CUR_INDEX] = (g_pStateVars[i*H + j + 1].V - g_pStateVars[i*H + j - 1].V)/2;
+				}
+				else if(j == 0)
+				{
+					g_pGardientX[CUR_INDEX] = (g_pStateVars[i*H + j + 1].V - g_pStateVars[i*H + j].V);
+				}
+				else // j == H-1
+				{
+					g_pGardientX[CUR_INDEX] = (g_pStateVars[i*H + j].V - g_pStateVars[i*H + j - 1].V);
+				}
+
+				if(i != 0 && i != (W-1))
+				{
+					g_pGardientY[CUR_INDEX] = (g_pStateVars[(i+1)*H + j].V - g_pStateVars[(i-1)*H + j].V)/2;
+				}
+				else if(i == 0)
+				{
+					g_pGardientY[CUR_INDEX] = (g_pStateVars[(i+1)*H + j].V - g_pStateVars[i*H + j].V);
+				}
+				else // i == W-1
+				{
+					g_pGardientY[CUR_INDEX] = (g_pStateVars[i*H + j].V - g_pStateVars[(i-1)*H + j].V);
+				}
+			END_LOOP
+
+			START_LOOP
+				for(int ii = 0; ii < W; ii++)
+				{
+					for(int jj = 0; jj < H; jj++)
+					{
+						double dDistanceW = double(dW*(i-ii));
+						double dDistanceH = double(dH*(j-jj));
+						double dDistanceR3 = pow((pow(dDistanceW,2) + pow(dDistanceH,2) + dZ*dZ), 3/2);
+						double dUnipolar = (g_pGardientY[ii*H + jj]*dDistanceW + g_pGardientX[ii*H + jj]*dDistanceH)/dDistanceR3;
+					}
+				} 
+			END_LOOP
+			*/
+
 		} // sim_time loop
 
 		SaveRiseTimeToFile(iProtocol);
 	}
+
+	clock_t total_program_ending_time = clock();
+	double total_program_running_time = (total_program_ending_time - total_program_starting_time)/double(CLOCKS_PER_SEC);
+	printf("Total program running time: %.3f\n", total_program_running_time);
+	getchar();
 	return 0;
 } // of main
 

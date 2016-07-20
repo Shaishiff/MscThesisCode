@@ -13,7 +13,7 @@ const double V_m = -32.7;
 const double V_rest = -80.0;
 const double j_var = 0.9775;
 //const double j_var = 0.97250;
-
+//
 //const double Diffusion = 0.00074425;
 //const double Diffusion = 0.00074710;
 

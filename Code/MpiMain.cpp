@@ -44,34 +44,65 @@ void StartMainGaProcess()
 	vector<char*> vecTargets;
 	char targetName[FILE_NAME_BUFFER_SIZE] = {0};
 
-	sprintf(targetName, "TargetFibroblast_(60_35)-(80_60)_+_(90_90)-(110_110)");
-	vecTargets.push_back(targetName);
+	//#define NO_NOISE
+	//#define NO_DOWN_SAMPLING
+	//sprintf(targetName, "TargetFibroblast_(66_66)-(85_85)"); vecTargets.push_back(targetName); // Single square.
+	//sprintf(targetName, "TargetFibroblast_(36_36)-(55_55)_+_(86_86)-(105_105)"); vecTargets.push_back(targetName); // Two squares.
+	//sprintf(targetName, "TargetFibroblast_(36_36)-(55_55)_+_(36_76)-(55_115)_+_(80_35)-(100_65)"); vecTargets.push_back(targetName); // Three squares.
+	//sprintf(targetName, "TargetFibroblast_(90_90)-R=15"); vecTargets.push_back(targetName); // Disc.
 
-	//sprintf(targetName, "TargetFibroblast_(60_60)-R=20");
-	//vecTargets.push_back(targetName);
+	// Target #1
+	//sprintf(targetName, "TargetFibroblast_(60_35)-(80_60)_+_(90_90)-(110_110)"); vecTargets.push_back(targetName);
 
-	//sprintf(targetName, "TargetFibroblast_(61_61)-(80_80)_+_(79_79)-(98_98)");
-	//vecTargets.push_back(targetName);
+	// Target #2
+	sprintf(targetName, "TargetFibroblast_(60_60)-R=20"); vecTargets.push_back(targetName);
+
+	// Target #3
+	//sprintf(targetName, "TargetFibroblast_(61_61)-(80_80)_+_(79_79)-(98_98)"); vecTargets.push_back(targetName);
 
 	for(int iVecTargets = 0; iVecTargets < (int)vecTargets.size(); ++iVecTargets)
 	{
+		#ifndef NO_NOISE
 		vector<int> vecNoise;
-		for(int iVecNoise = 25; iVecNoise <= 60; iVecNoise += 5) vecNoise.push_back(iVecNoise);
-
+		//vecNoise.push_back(-21);
+		//vecNoise.push_back(-22);
+		//vecNoise.push_back(-23);
+		//vecNoise.push_back(-24);
+		//vecNoise.push_back(-25);
+		vecNoise.push_back(-26);
+		//for(int iVecNoise = -22; iVecNoise <= -26; iVecNoise -= 2) vecNoise.push_back(iVecNoise);
+		//for(int iVecNoise = 30; iVecNoise <= 50; iVecNoise += 5) vecNoise.push_back(iVecNoise);
 		for(int iVecNoise = 0; iVecNoise < (int)vecNoise.size(); ++iVecNoise)
 		{
-			char targetFullPath[FILE_NAME_BUFFER_SIZE] = {0};
-			sprintf(targetFullPath, "_TargetFibroblastMatResults_withNoise=%d_SNRdb_prot", vecNoise[iVecNoise]);
+			int nNoise = vecNoise[iVecNoise];
+		#else
+		{
+			int nNoise = 100;
+		#endif
 
+			char targetFullPath[FILE_NAME_BUFFER_SIZE] = {0};
+			#ifndef NO_NOISE
+				sprintf(targetFullPath, "_TargetFibroblastMatResults_withNoise=%d_SNRdb_prot", vecNoise[iVecNoise]);
+			#else
+				sprintf(targetFullPath, "TargetFibroblastMatResults");
+			#endif
+
+			#ifndef NO_DOWN_SAMPLING
 			vector<int> vecSamplingIntervals;
 			vecSamplingIntervals.push_back(16);
 			for(int iVecSample = 0; iVecSample < (int)vecSamplingIntervals.size(); iVecSample++)
 			{
+				int nSampleInterval = vecSamplingIntervals[iVecSample];
+			#else
+			{
+				int nSampleInterval = 1;
+			#endif
+
 				double** pCombinedFibroblastMat = CreateMat();
-				for(int iAlgoIndex = 0; iAlgoIndex < 10; ++iAlgoIndex)
+				for(int iAlgoIndex = 30; iAlgoIndex <= 40; ++iAlgoIndex)
 				{
 					CGA ga;
-					ga.RunGA(vecTargets[iVecTargets], targetFullPath, iAlgoIndex, vecSamplingIntervals[iVecSample], vecNoise[iVecNoise], pCombinedFibroblastMat);
+					ga.RunGA(vecTargets[iVecTargets], targetFullPath, iAlgoIndex, nSampleInterval, nNoise, pCombinedFibroblastMat);
 				}
 				//char combinedFibroblastFileName[FILE_NAME_BUFFER_SIZE] = {0};
 				//sprintf(combinedFibroblastFileName, "%s/CombinedFibroblasts_samp_%d.txt", LOG_FOLDER, vecSamplingIntervals[iVec]);
